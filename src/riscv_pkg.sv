@@ -10,16 +10,54 @@ package riscv_pkg;
         IMM_J
     } imm_type_t;
 
+    typedef enum logic [2:0] {
+        WB_ALU,
+        WB_MEM,
+        WB_PC
+    } wb_sel_t;
+
+    typedef enum logic [2:0] {
+        PC_NEXT,
+        PC_BRANCH,
+        PC_JALR,
+        PC_TRAP
+    } pc_sel_t;
+
+    typedef enum logic [3:0] {
+        ALU_ADD,
+        ALU_SUB,
+        ALU_XOR,
+        ALU_OR,
+        ALU_AND,
+        ALU_SLL,
+        ALU_SRL,
+        ALU_SRA,
+        ALU_SLT,
+        ALU_SLTU,
+        ALU_COPY_B,
+        ALU_INVALID
+    } alu_op_t;
+
+    typedef enum logic [1:0] {
+        ALU_SRC_A_RS1,
+        ALU_SRC_A_PC
+    } alu_src_a_sel_t;
+
+    typedef enum logic [1:0] {
+        ALU_SRC_B_RS2,
+        ALU_SRC_B_IMM
+    } alu_src_b_sel_t;
+
     typedef logic [6:0] opcode_t;
-    localparam opcode_t LOAD =  7'b0000011;
-    localparam opcode_t STORE = 7'b0100011;
-    localparam opcode_t OP =    7'b0110011;
-    localparam opcode_t OP_IMM =7'b0010011;
-    localparam opcode_t AUIPC  =7'b0010111;
-    localparam opcode_t LUI =   7'b0110111;
-    localparam opcode_t BRANCH =7'b1100011;
-    localparam opcode_t JALR =  7'b1100111;
-    localparam opcode_t JAL =   7'b1101111;
+    localparam opcode_t OPCODE_LOAD =  7'b0000011;
+    localparam opcode_t OPCODE_STORE = 7'b0100011;
+    localparam opcode_t OPCODE_OP =    7'b0110011;
+    localparam opcode_t OPCODE_OP_IMM =7'b0010011;
+    localparam opcode_t OPCODE_AUIPC  =7'b0010111;
+    localparam opcode_t OPCODE_LUI =   7'b0110111;
+    localparam opcode_t OPCODE_BRANCH =7'b1100011;
+    localparam opcode_t OPCODE_JALR =  7'b1100111;
+    localparam opcode_t OPCODE_JAL =   7'b1101111;
 
     typedef logic [2:0] funct3_t;
     typedef logic [6:0] funct7_t;
