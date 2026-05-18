@@ -4,14 +4,14 @@
 *.str
 
 # Build results
-EE354_FinalProject.runs/
-EE354_FinalProject.cache/
-EE354_FinalProject.hw/
-EE354_FinalProject.sim/
-EE354_FinalProject.gen/
+*.runs/
+*.cache/
+*.hw/
+*.sim/
+*.gen/
 
 # IP generated files
-EE354_FinalProject.ip_user_files/
+*.ip_user_files/
 
 # Checkpoints
 *.dcp

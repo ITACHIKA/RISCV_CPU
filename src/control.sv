@@ -20,10 +20,6 @@ module control(
     
 );
 
-logic [6:0] opcode;
-logic [2:0] func3;
-logic [6:0] func7;
-
 always_comb begin
     reg_we = 1'b0;
     mem_re = 1'b0;
@@ -41,7 +37,7 @@ always_comb begin
             mem_we = 1'b0;
             wb_sel = WB_MEM;
             alu_op = ALU_ADD;
-            pc_sel_t = PC_NEXT;
+            pc_sel = PC_NEXT;
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
         end
@@ -62,7 +58,7 @@ always_comb begin
                 F3_ANDI: alu_op = ALU_AND;
                 F3_SLLI: begin
                     if(funct7==F7_SLLI)
-                        alu_op = ALU_SLL
+                        alu_op = ALU_SLL;
                         else begin
                             alu_op = ALU_INVALID;
                             illegal_instr = 1'b1;
