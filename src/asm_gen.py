@@ -38,7 +38,7 @@ def enc_i(imm, rs1, f3, rd, opc):
     return (imm << 20) | (rs1 << 15) | (f3 << 12) | (rd << 7) | opc
 
 def enc_u(imm, rd, opc):
-    return (imm & 0xfffff000) | (rd << 7) | opc
+    return ((imm & 0xfffff)<<12) | (rd << 7) | opc
 
 def parse_reg(s):
     s = s.strip()
@@ -144,7 +144,12 @@ asm = [
     "addi x2, x1, 3",
     "add  x3, x1, x2",
     "sub  x4, x3, x1",
-    "ori  x5, x4, 0x0FF"
+    "slli x5, x4, 1",
+    "srli x6, x5, 1",
+    "lui x7, 0x12345",
+    "srai x8, x7, 4",
+    "lui x9, 0xF2345",
+    "srai x10, x9, 4",
 ]
 
 with open("instr_rom.mem", "w") as f:

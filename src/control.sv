@@ -163,6 +163,16 @@ always_comb begin
                 end
             endcase           
         end
+        OPCODE_LUI: begin
+            reg_we = 1'b1;
+            mem_re = 1'b0;
+            mem_we = 1'b0;
+            wb_sel = WB_ALU;
+            pc_sel = PC_NEXT;
+            alu_src_a_sel = ALU_SRC_A_RS1;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_COPY_B;
+        end
     endcase
 end
 
