@@ -88,6 +88,14 @@ def encode_line(line):
         rd, rs1, rs2 = map(parse_reg, toks[1:4])
         return enc_r(FUNCT7["OP"], rs2, rs1, FUNCT3["XOR"], rd, OPCODES["OP"])
 
+    if op == "slt":
+        rd, rs1, rs2 = map(parse_reg, toks[1:4])
+        return enc_r(FUNCT7["OP"], rs2, rs1, FUNCT3["SLT"], rd, OPCODES["OP"])
+
+    if op == "sltu":
+        rd, rs1, rs2 = map(parse_reg, toks[1:4])
+        return enc_r(FUNCT7["OP"], rs2, rs1, FUNCT3["SLTU"], rd, OPCODES["OP"])
+
     if op == "addi":
         rd, rs1 = map(parse_reg, toks[1:3])
         imm = parse_imm(toks[3])
@@ -126,6 +134,16 @@ def encode_line(line):
         imm = (FUNCT7["SRA"] << 5) | (shamt & 0x1f)
         return enc_i(imm, rs1, FUNCT3["SR"], rd, OPCODES["OPIMM"])
 
+    if op == "slti":
+        rd, rs1 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_i(imm, rs1, FUNCT3["SLT"], rd, OPCODES["OPIMM"])
+
+    if op == "sltiu":
+        rd, rs1 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_i(imm, rs1, FUNCT3["SLTU"], rd, OPCODES["OPIMM"])
+
     if op == "lui":
         rd = parse_reg(toks[1])
         imm = parse_imm(toks[2])
@@ -150,6 +168,14 @@ asm = [
     "srai x8, x7, 4",
     "lui x9, 0xF2345",
     "srai x10, x9, 4",
+    "slt  x11, x1, x2",
+    "slt  x12, x9, x1",
+    "sltu x13, x9, x1",
+    "slti x14, x1, 1",
+    "sltiu x15, x2, 10",
+    "addi x16, x0, -1",
+    "slti x17, x16, 0",
+    "sltiu x18, x16, 0",
 ]
 
 with open("instr_rom.mem", "w") as f:
