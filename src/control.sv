@@ -173,6 +173,9 @@ always_comb begin
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_COPY_B;
         end
+        OPCODE_BRANCH: begin
+            pc_sel = PC_BRANCH;
+        end
     endcase
 end
 

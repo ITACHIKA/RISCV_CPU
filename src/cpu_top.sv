@@ -1,10 +1,12 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 module riscv_cpu (
-    input logic clk,
-    input logic reset_n
+    input logic sysclk,
+    input logic reset
 );
 
+logic reset_n;
+assign reset_n = ~reset;
 logic [31:0] current_pc;
 logic [31:0] next_pc;
 logic [31:0] instr;
@@ -30,6 +32,28 @@ logic [31:0] imm;
 logic [31:0] alu_a, alu_b;
 logic [31:0] alu_result;
 logic [31:0] wb_data;
+
+logic eq;
+logic less_signed;
+logic less_unsigned;
+
+logic take;
+
+comparator comparator(
+    .a(alu_a),
+    .b(alu_b),
+    .eq(eq),
+    .less_signed(less_signed),
+    .less_unsigned(less_unsigned)
+);
+
+branch branch(
+    .funct3(funct3),
+    .eq(eq),
+    .less_signed(less_signed),
+    .less_unsigned(less_unsigned),
+    .take(take)
+)
 
 pc pc(
     .clk(clk),
@@ -119,6 +143,7 @@ always_comb begin
         WB_ALU: wb_data = alu_result;
         WB_MEM: wb_data = 32'd0;
         WB_PC: wb_data = current_pc + 4;
+        WB_CMP: wb_data = {31'd0, eq};
         default: wb_data = 32'd0;
     endcase
 end
@@ -126,7 +151,7 @@ end
 always_comb begin
     unique case(pc_sel)
         PC_NEXT: next_pc = current_pc + 4;
-        PC_BRANCH: next_pc = current_pc + imm;
+        PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
         PC_JALR: next_pc = (rs1_data + imm) & 32'hFFFF_FFFE;
         PC_TRAP: next_pc = 32'h0000_0000;
         default: next_pc = current_pc + 4;
