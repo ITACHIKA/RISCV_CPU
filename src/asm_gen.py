@@ -8,6 +8,7 @@ OPCODES = {
     "LUI":     0b0110111,
     "AUIPC":   0b0010111,
     "JALR":    0b1100111,
+    "BRANCH":  0b1100011,
 }
 
 FUNCT3 = {
@@ -19,6 +20,12 @@ FUNCT3 = {
     "SR":      0b101,
     "OR":      0b110,
     "AND":     0b111,
+    "BEQ":     0b000,
+    "BNE":     0b001,
+    "BLT":     0b100,
+    "BGE":     0b101,
+    "BLTU":    0b110,
+    "BGEU":    0b111,
 }
 
 FUNCT7 = {
@@ -39,6 +46,16 @@ def enc_i(imm, rs1, f3, rd, opc):
 
 def enc_u(imm, rd, opc):
     return ((imm & 0xfffff)<<12) | (rd << 7) | opc
+
+def enc_b(imm, rs2, rs1, f3, opc):
+    # B-type immediate encoding:
+    # imm[12|10:5] -> bits[31:25], imm[4:1] -> bits[11:8], imm[11] -> bits[7]
+    imm &= 0x1fff  # 13-bit signed immediate
+    bit12 = (imm >> 12) & 0x1
+    bit11 = (imm >> 11) & 0x1
+    bit10_5 = (imm >> 5) & 0x3f
+    bit4_1 = (imm >> 1) & 0xf
+    return (bit12 << 31) | (bit10_5 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (bit4_1 << 8) | (bit11 << 7) | opc
 
 def parse_reg(s):
     s = s.strip()
@@ -154,28 +171,45 @@ def encode_line(line):
         imm = parse_imm(toks[2])
         return enc_u(imm, rd, OPCODES["AUIPC"])
 
+    if op == "beq":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BEQ"], OPCODES["BRANCH"])
+
+    if op == "bne":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BNE"], OPCODES["BRANCH"])
+
+    if op == "blt":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BLT"], OPCODES["BRANCH"])
+
+    if op == "bge":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BGE"], OPCODES["BRANCH"])
+
+    if op == "bltu":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BLTU"], OPCODES["BRANCH"])
+
+    if op == "bgeu":
+        rs1, rs2 = map(parse_reg, toks[1:3])
+        imm = parse_imm(toks[3])
+        return enc_b(imm, rs2, rs1, FUNCT3["BGEU"], OPCODES["BRANCH"])
+
     raise ValueError(f"Unsupported instruction: {line}")
 
 # ===== main =====
 asm = [
     "addi x1, x0, 5",
-    "addi x2, x1, 3",
-    "add  x3, x1, x2",
-    "sub  x4, x3, x1",
-    "slli x5, x4, 1",
-    "srli x6, x5, 1",
-    "lui x7, 0x12345",
-    "srai x8, x7, 4",
-    "lui x9, 0xF2345",
-    "srai x10, x9, 4",
-    "slt  x11, x1, x2",
-    "slt  x12, x9, x1",
-    "sltu x13, x9, x1",
-    "slti x14, x1, 1",
-    "sltiu x15, x2, 10",
-    "addi x16, x0, -1",
-    "slti x17, x16, 0",
-    "sltiu x18, x16, 0",
+    "addi x2, x0, -1",
+    "bgeu x1, x2, 8",
+    "addi x3, x0, 2",
+    "add x4, x1, x2",
 ]
 
 with open("instr_rom.mem", "w") as f:

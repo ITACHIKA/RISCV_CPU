@@ -3,24 +3,24 @@ import riscv_pkg::*;
 module cpu_tb;
 
 logic clk;
-logic reset_n;
+logic reset;
 
 riscv_cpu uut (
-    .clk(clk),
-    .reset_n(reset_n)
+    .sysclk(clk),
+    .reset(reset)
 );
 
 initial clk=0;
 always #5 clk = ~clk;
 
 initial begin
-    reset_n=0;
+    reset=1;
     repeat (3) @(posedge clk);
-    reset_n=1;
+    reset=0;
 end
 
 initial begin
-    @(posedge reset_n);
+    @(posedge reset);
 
     repeat (40) @(posedge clk);
 

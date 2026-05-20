@@ -6,7 +6,9 @@ module riscv_cpu (
 );
 
 logic reset_n;
+logic clk;
 assign reset_n = ~reset;
+assign clk = sysclk;
 logic [31:0] current_pc;
 logic [31:0] next_pc;
 logic [31:0] instr;
@@ -53,7 +55,7 @@ branch branch(
     .less_signed(less_signed),
     .less_unsigned(less_unsigned),
     .take(take)
-)
+);
 
 pc pc(
     .clk(clk),
@@ -119,6 +121,8 @@ alu alu(
     .a(alu_a),
     .b(alu_b),
     .alu_op(alu_op),
+    .less_signed(less_signed),
+    .less_unsigned(less_unsigned),
     .result(alu_result)
 );
 
