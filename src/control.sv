@@ -176,6 +176,16 @@ always_comb begin
         OPCODE_BRANCH: begin
             pc_sel = PC_BRANCH;
         end
+        OPCODE_AUIPC: begin
+            reg_we = 1'b1;
+            mem_re = 1'b0;
+            mem_we = 1'b0;
+            wb_sel = WB_ALU;
+            pc_sel = PC_NEXT;
+            alu_src_a_sel = ALU_SRC_A_PC;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_ADD;
+        end
     endcase
 end
 

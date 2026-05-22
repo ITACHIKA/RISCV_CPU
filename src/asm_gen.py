@@ -210,6 +210,7 @@ asm = [
     "bgeu x1, x2, 8",
     "addi x3, x0, 2",
     "add x4, x1, x2",
+    "auipc x5, 0x12345",
 ]
 
 with open("instr_rom.mem", "w") as f:
