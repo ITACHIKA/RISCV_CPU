@@ -16,31 +16,29 @@ module control(
     output pc_sel_t pc_sel,
     output logic    illegal_instr,
     output alu_src_a_sel_t    alu_src_a_sel,
-    output alu_src_b_sel_t    alu_src_b_sel
+    output alu_src_b_sel_t    alu_src_b_sel,
     
+    output mem_size_t memsize,
+    output mem_sign_t memsign
 );
 
+(* keep = "true" *) logic debug;
+
 always_comb begin
+    debug = 1'b0;
+
     reg_we = 1'b0;
     mem_re = 1'b0;
     mem_we = 1'b0;
     wb_sel = WB_ALU;
     alu_op = ALU_INVALID;
     pc_sel = PC_NEXT;
+    memsize = MEM_BYTE;
+    memsign = MEM_SIGNED;
     illegal_instr = 1'b0;
     alu_src_a_sel = ALU_SRC_A_RS1;
     alu_src_b_sel = ALU_SRC_B_RS2;
     unique case(opcode)
-        OPCODE_LOAD: begin
-            reg_we = 1'b1;
-            mem_re = 1'b1;
-            mem_we = 1'b0;
-            wb_sel = WB_MEM;
-            alu_op = ALU_ADD;
-            pc_sel = PC_NEXT;
-            alu_src_a_sel = ALU_SRC_A_RS1;
-            alu_src_b_sel = ALU_SRC_B_IMM;
-        end
         OPCODE_OP_IMM: begin
             reg_we = 1'b1;
             mem_re = 1'b0;
@@ -204,7 +202,64 @@ always_comb begin
             pc_sel = PC_JALR;
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
-            alu_op = ALU_ADD;            
+            alu_op = ALU_ADD;
+        end
+        OPCODE_LOAD: begin
+            reg_we = 1'b1;
+            mem_re = 1'b1;
+            mem_we = 1'b0;
+            wb_sel = WB_MEM;
+            pc_sel = PC_NEXT;
+            alu_src_a_sel = ALU_SRC_A_RS1;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_ADD;
+            debug = 1'b1;
+            unique case(funct3)
+                F3_LB: begin
+                    memsize = MEM_BYTE;
+                    memsign = MEM_SIGNED;
+                end
+                F3_LH: begin
+                    memsize = MEM_HALF;
+                    memsign = MEM_SIGNED;
+                end
+                F3_LW: begin
+                    memsize = MEM_WORD;
+                    memsign = MEM_SIGNED;
+                end
+                F3_LBU: begin
+                    memsize = MEM_BYTE;
+                    memsign = MEM_UNSIGNED;
+                end
+                F3_LHU: begin
+                    memsize = MEM_HALF;
+                    memsign = MEM_UNSIGNED;
+                end
+            endcase
+        end
+        OPCODE_STORE: begin
+            reg_we = 1'b0;
+            mem_re = 1'b0;
+            mem_we = 1'b1;
+            wb_sel = WB_ALU;
+            pc_sel = PC_NEXT;
+            alu_src_a_sel = ALU_SRC_A_RS1;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_ADD;
+            unique case(funct3)
+                F3_SB: begin
+                    memsize = MEM_BYTE;
+                    memsign = MEM_SIGNED;
+                end
+                F3_SH: begin
+                    memsize = MEM_HALF;
+                    memsign = MEM_SIGNED;
+                end
+                F3_SW: begin
+                    memsize = MEM_WORD;
+                    memsign = MEM_SIGNED;
+                end
+            endcase
         end
     endcase
 end

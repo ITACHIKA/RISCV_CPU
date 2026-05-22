@@ -38,8 +38,15 @@ logic [31:0] wb_data;
 logic eq;
 logic less_signed;
 logic less_unsigned;
+mem_size_t memsize;
+mem_sign_t memsign;
+logic [31:0] mem_wdata;
 
 logic take;
+
+logic [31:0] dmem_output_raw;
+logic [31:0] dmem_output;
+logic [3:0] wstrb;
 
 comparator comparator(
     .a(alu_a),
@@ -96,7 +103,10 @@ control control(
     .pc_sel(pc_sel),
     .illegal_instr(illegal_instr),
     .alu_src_a_sel(alu_src_a_sel),
-    .alu_src_b_sel(alu_src_b_sel)
+    .alu_src_b_sel(alu_src_b_sel),
+
+    .memsize(memsize),
+    .memsign(memsign)
 );
 
 registers registers(
@@ -105,7 +115,7 @@ registers registers(
     .rs1_addr(rs1),
     .rs2_addr(rs2),
     .rd_addr(rd),
-    .rd_data(wb_data),
+    .rd_data(wb_data), //rd register data, not read data
     .rd_we(reg_we),
     .rs1_data(rs1_data),
     .rs2_data(rs2_data)
@@ -124,6 +134,27 @@ alu alu(
     .less_signed(less_signed),
     .less_unsigned(less_unsigned),
     .result(alu_result)
+);
+
+dmem dmem(
+    .clk(clk),
+    .wren(mem_we),
+    .addr(alu_result),
+    .wdata(mem_wdata),
+    .rdata(dmem_output_raw),
+    .wstrb(wstrb)
+);
+
+lsu lsu(
+    .wren(mem_we),
+    .addr(alu_result),
+    .store_data(rs2_data),
+    .mem_data(dmem_output_raw),
+    .memsize(memsize),
+    .memsign(memsign),
+    .wstrb(wstrb),
+    .mem_wdata(mem_wdata),
+    .load_data(dmem_output)
 );
 
 always_comb begin
@@ -145,7 +176,7 @@ end
 always_comb begin
     unique case(wb_sel)
         WB_ALU: wb_data = alu_result;
-        WB_MEM: wb_data = 32'd0;
+        WB_MEM: wb_data = dmem_output;
         WB_PC: wb_data = current_pc + 4; //for JAL
         WB_CMP: wb_data = {31'd0, eq};
         default: wb_data = 32'd0;

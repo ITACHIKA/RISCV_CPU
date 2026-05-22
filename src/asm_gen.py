@@ -10,6 +10,8 @@ OPCODES = {
     "JAL":     0b1101111,
     "JALR":    0b1100111,
     "BRANCH":  0b1100011,
+    "LOAD":    0b0000011,
+    "STORE":   0b0100011,
 }
 
 FUNCT3 = {
@@ -28,6 +30,14 @@ FUNCT3 = {
     "BGE":     0b101,
     "BLTU":    0b110,
     "BGEU":    0b111,
+    "LB":      0b000,
+    "LH":      0b001,
+    "LW":      0b010,
+    "LBU":     0b100,
+    "LHU":     0b101,
+    "SB":      0b000,
+    "SH":      0b001,
+    "SW":      0b010,
 }
 
 FUNCT7 = {
@@ -73,6 +83,14 @@ def enc_jalr(imm, rs1, rd, opc):
     # I-type for JALR: imm[11:0] -> bits[31:20]
     imm &= 0xfff
     return (imm << 20) | (rs1 << 15) | (0b000 << 12) | (rd << 7) | opc
+
+def enc_s(imm, rs2, rs1, f3, opc):
+    # S-type immediate encoding:
+    # imm[11:5] -> bits[31:25], imm[4:0] -> bits[11:7]
+    imm &= 0xfff  # 12-bit signed immediate
+    imm_hi = (imm >> 5) & 0x7f
+    imm_lo = imm & 0x1f
+    return (imm_hi << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (imm_lo << 7) | opc
 
 def parse_reg(s):
     s = s.strip()
@@ -229,19 +247,44 @@ def encode_line(line):
         imm = parse_imm(toks[3])
         return enc_jalr(imm, rs1, rd, OPCODES["JALR"])
 
+    # LOAD instructions: format "lw rd, offset(rs1)"
+    if op in ["lw", "lh", "lb", "lhu", "lbu"]:
+        rd = parse_reg(toks[1])
+        # Parse "offset(rs1)" format
+        mem_operand = toks[2]
+        offset_match = re.match(r'(-?\d+)\((\w+)\)', mem_operand)
+        if not offset_match:
+            raise ValueError(f"Invalid memory operand format: {mem_operand}")
+        imm = int(offset_match.group(1))
+        rs1 = parse_reg(offset_match.group(2))
+        return enc_i(imm, rs1, FUNCT3[op.upper()], rd, OPCODES["LOAD"])
+
+    # STORE instructions: format "sw rs2, offset(rs1)"
+    if op in ["sw", "sh", "sb"]:
+        rs2 = parse_reg(toks[1])
+        # Parse "offset(rs1)" format
+        mem_operand = toks[2]
+        offset_match = re.match(r'(-?\d+)\((\w+)\)', mem_operand)
+        if not offset_match:
+            raise ValueError(f"Invalid memory operand format: {mem_operand}")
+        imm = int(offset_match.group(1))
+        rs1 = parse_reg(offset_match.group(2))
+        return enc_s(imm, rs2, rs1, FUNCT3[op.upper()], OPCODES["STORE"])
+
     raise ValueError(f"Unsupported instruction: {line}")
 
 # ===== main =====
 asm = [
     "addi x1, x0, 5",
-    "addi x2, x0, -1",
-    "bgeu x1, x2, 8",
-    "addi x3, x0, 2",
-    "add x4, x1, x2",
-    "auipc x5, 0x12345",
-    "jal x6, 8",
-    "addi x7, x7, 1",
-    "jalr x0, x6, 0",
+    "addi x2, x0, 4",
+    "addi x7, x0, -1",
+    "sw x1, 0(x2)",        # Store x1 to memory at x2+0
+    "lw x3, 0(x2)",        # Load from memory at x2+0 into x3
+    "sh x1, 6(x2)",        # Store halfword x1 to x2+4
+    "lh x4, 6(x2)",        # Load halfword from x2+4 into x4
+    "sb x7, 9(x2)",        # Store byte x1 to x2+8
+    "lbu x5, 9(x2)",        # Load byte from x2+8 into x5
+    "lb x6, 9(x2)",      # Load byte unsigned from x2+8 into x6
 ]
 
 with open("instr_rom.mem", "w") as f:

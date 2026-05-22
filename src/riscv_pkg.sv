@@ -25,6 +25,17 @@ package riscv_pkg;
         PC_TRAP
     } pc_sel_t;
 
+    typedef enum logic [2:0] {
+        MEM_BYTE,
+        MEM_HALF,
+        MEM_WORD
+    } mem_size_t;
+
+    typedef enum logic {
+        MEM_UNSIGNED,
+        MEM_SIGNED
+    } mem_sign_t;
+
     typedef enum logic [3:0] {
         ALU_ADD,
         ALU_SUB,
