@@ -146,7 +146,7 @@ always_comb begin
     unique case(wb_sel)
         WB_ALU: wb_data = alu_result;
         WB_MEM: wb_data = 32'd0;
-        WB_PC: wb_data = current_pc + 4;
+        WB_PC: wb_data = current_pc + 4; //for JAL
         WB_CMP: wb_data = {31'd0, eq};
         default: wb_data = 32'd0;
     endcase
@@ -156,7 +156,8 @@ always_comb begin
     unique case(pc_sel)
         PC_NEXT: next_pc = current_pc + 4;
         PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
-        PC_JALR: next_pc = (rs1_data + imm) & 32'hFFFF_FFFE;
+        PC_JAL: next_pc = alu_result;
+        PC_JALR: next_pc = alu_result & 32'hFFFF_FFFE;
         PC_TRAP: next_pc = 32'h0000_0000;
         default: next_pc = current_pc + 4;
     endcase

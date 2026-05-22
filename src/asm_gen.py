@@ -7,6 +7,7 @@ OPCODES = {
     "OPIMM":   0b0010011,
     "LUI":     0b0110111,
     "AUIPC":   0b0010111,
+    "JAL":     0b1101111,
     "JALR":    0b1100111,
     "BRANCH":  0b1100011,
 }
@@ -20,6 +21,7 @@ FUNCT3 = {
     "SR":      0b101,
     "OR":      0b110,
     "AND":     0b111,
+    "JALR":    0b000,
     "BEQ":     0b000,
     "BNE":     0b001,
     "BLT":     0b100,
@@ -56,6 +58,21 @@ def enc_b(imm, rs2, rs1, f3, opc):
     bit10_5 = (imm >> 5) & 0x3f
     bit4_1 = (imm >> 1) & 0xf
     return (bit12 << 31) | (bit10_5 << 25) | (rs2 << 20) | (rs1 << 15) | (f3 << 12) | (bit4_1 << 8) | (bit11 << 7) | opc
+
+def enc_j(imm, rd, opc):
+    # J-type immediate encoding:
+    # imm[20|10:1|11|19:12] -> bits[31|30:21|20|19:12]
+    imm &= 0x1fffff  # 21-bit signed immediate
+    bit20 = (imm >> 20) & 0x1
+    bit10_1 = (imm >> 1) & 0x3ff
+    bit11 = (imm >> 11) & 0x1
+    bit19_12 = (imm >> 12) & 0xff
+    return (bit20 << 31) | (bit10_1 << 21) | (bit11 << 20) | (bit19_12 << 12) | (rd << 7) | opc
+
+def enc_jalr(imm, rs1, rd, opc):
+    # I-type for JALR: imm[11:0] -> bits[31:20]
+    imm &= 0xfff
+    return (imm << 20) | (rs1 << 15) | (0b000 << 12) | (rd << 7) | opc
 
 def parse_reg(s):
     s = s.strip()
@@ -201,6 +218,17 @@ def encode_line(line):
         imm = parse_imm(toks[3])
         return enc_b(imm, rs2, rs1, FUNCT3["BGEU"], OPCODES["BRANCH"])
 
+    if op == "jal":
+        rd = parse_reg(toks[1])
+        imm = parse_imm(toks[2])
+        return enc_j(imm, rd, OPCODES["JAL"])
+
+    if op == "jalr":
+        rd = parse_reg(toks[1])
+        rs1 = parse_reg(toks[2])
+        imm = parse_imm(toks[3])
+        return enc_jalr(imm, rs1, rd, OPCODES["JALR"])
+
     raise ValueError(f"Unsupported instruction: {line}")
 
 # ===== main =====
@@ -211,6 +239,9 @@ asm = [
     "addi x3, x0, 2",
     "add x4, x1, x2",
     "auipc x5, 0x12345",
+    "jal x6, 8",
+    "addi x7, x7, 1",
+    "jalr x0, x6, 0",
 ]
 
 with open("instr_rom.mem", "w") as f:

@@ -186,6 +186,26 @@ always_comb begin
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_ADD;
         end
+        OPCODE_JAL: begin
+            reg_we = 1'b1;
+            mem_re = 1'b0;
+            mem_we = 1'b0;
+            wb_sel = WB_PC;
+            pc_sel = PC_JAL;
+            alu_src_a_sel = ALU_SRC_A_PC;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_ADD;            
+        end
+        OPCODE_JALR: begin
+            reg_we = 1'b1;
+            mem_re = 1'b0;
+            mem_we = 1'b0;
+            wb_sel = WB_PC;
+            pc_sel = PC_JALR;
+            alu_src_a_sel = ALU_SRC_A_RS1;
+            alu_src_b_sel = ALU_SRC_B_IMM;
+            alu_op = ALU_ADD;            
+        end
     endcase
 end
 

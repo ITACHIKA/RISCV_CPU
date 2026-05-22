@@ -20,6 +20,7 @@ package riscv_pkg;
     typedef enum logic [2:0] {
         PC_NEXT,
         PC_BRANCH,
+        PC_JAL,
         PC_JALR,
         PC_TRAP
     } pc_sel_t;
