@@ -38,15 +38,17 @@ logic [31:0] wb_data;
 logic eq;
 logic less_signed;
 logic less_unsigned;
-mem_size_t memsize;
-mem_sign_t memsign;
-logic [31:0] mem_wdata;
 
 logic take;
 
+mem_size_t memsize;
+mem_sign_t memsign;
+logic [31:0] mem_wdata;
 logic [31:0] dmem_output_raw;
 logic [31:0] dmem_output;
 logic [3:0] wstrb;
+logic load_misalign_except;
+logic store_misalign_except;
 
 comparator comparator(
     .a(alu_a),
@@ -154,8 +156,22 @@ lsu lsu(
     .memsign(memsign),
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
-    .load_data(dmem_output)
+    .load_data(dmem_output),
+    .load_misalign_except(load_misalign_except),
+    .store_misalign_except(store_misalign_except)
 );
+
+logic exception;
+assign exception = illegal_instr || load_misalign_except || store_misalign_except;
+
+// always_comb begin
+//     if(reset_n && illegal_instr)
+//         $error("Illegal instruction at PC = %h, instr = %h", current_pc, instr);
+//     else if(reset_n && load_misalign_except)
+//         $error("Load misalignment exception at PC = %h, addr = %h", current_pc, alu_result);
+//     else if(reset_n && store_misalign_except)
+//         $error("Store misalignment exception at PC = %h, addr = %h", current_pc, alu_result);
+// end
 
 always_comb begin
     unique case(alu_src_a_sel)

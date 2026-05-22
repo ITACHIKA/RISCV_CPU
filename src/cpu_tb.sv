@@ -15,7 +15,7 @@ always #5 clk = ~clk;
 
 initial begin
     reset=1;
-    repeat (3) @(posedge clk);
+    repeat (1) @(posedge clk);
     reset=0;
 end
 

@@ -11,8 +11,28 @@ module lsu( //load store unit
     output logic [3:0] wstrb,
     output logic [31:0] mem_wdata, //output to mem after process
     output logic [31:0] load_data, //output to rd after process,
-    output logic misalign_except
+    output logic load_misalign_except,
+    output logic store_misalign_except
 );
+
+always_comb begin
+    load_misalign_except = 1'b0;
+    store_misalign_except = 1'b0;
+    case(memsize)
+        MEM_HALF: begin
+            load_misalign_except = (!wren) && (addr[0]);
+            store_misalign_except = wren && (addr[0]);
+        end
+        MEM_WORD: begin
+            load_misalign_except = (!wren) && (|addr[1:0]);
+            store_misalign_except = wren && (|addr[1:0]);
+        end
+        default: begin //byte always aligned
+            load_misalign_except = 1'b0;
+            store_misalign_except = 1'b0;
+        end
+    endcase
+end
 
 always_comb begin
     wstrb = 4'b0000;

@@ -235,6 +235,11 @@ always_comb begin
                     memsize = MEM_HALF;
                     memsign = MEM_UNSIGNED;
                 end
+                default: begin
+                    memsize = MEM_HALF;
+                    memsign = MEM_UNSIGNED;
+                    illegal_instr = 1'b1;
+                end
             endcase
         end
         OPCODE_STORE: begin
@@ -259,7 +264,15 @@ always_comb begin
                     memsize = MEM_WORD;
                     memsign = MEM_SIGNED;
                 end
+                default: begin
+                    memsize = MEM_HALF;
+                    memsign = MEM_UNSIGNED;
+                    illegal_instr = 1'b1;
+                end
             endcase
+        end
+        default: begin
+            illegal_instr = 1'b1;
         end
     endcase
 end

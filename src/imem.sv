@@ -5,7 +5,7 @@ module imem(
 );
 logic [31:0] instr_rom [0:255];
 initial begin
-    $readmemh("instr_rom.mem", instr_rom);
+    $readmemh("asm.mem", instr_rom);
 end
 
 assign instruction = instr_rom[addr[31:2]];
