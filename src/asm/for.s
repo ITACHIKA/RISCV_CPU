@@ -8,8 +8,8 @@ _start:
     j loop
 
 loop:
-    beq x3, x2, done
     add x1, x1, x3
+    beq x3, x2, done
     addi x3, x3, 1
     j loop
 
