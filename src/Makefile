@@ -1,6 +1,13 @@
+ifneq ($(MAKECMDGOALS),clean)
+	ifeq ($(strip $(PRGM)),)
+		$(error Usage: make PRGM=<asmname>)
+	endif
+endif
 # ========= Config =========
 
-SRC := asm.s
+ASM_DIR := asm
+
+SRC = $(ASM_DIR)/$(PRGM).s
 
 BUILD_DIR := build
 
@@ -21,7 +28,7 @@ TEXTADDR := 0x00000000
 OBJ  := $(BUILD_DIR)/$(BASENAME).o
 ELF  := $(BUILD_DIR)/$(BASENAME).elf
 BIN  := $(BUILD_DIR)/$(BASENAME).bin
-HEX  := $(BUILD_DIR)/$(BASENAME).mem
+HEX  := $(BUILD_DIR)/$(BASENAME).hex
 DUMP := $(BUILD_DIR)/$(BASENAME).dump
 
 # ========= Rules =========
