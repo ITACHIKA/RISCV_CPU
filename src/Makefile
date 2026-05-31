@@ -11,7 +11,7 @@ SRC = $(ASM_DIR)/$(PRGM).s
 
 BUILD_DIR := build
 
-BASENAME := $(basename $(notdir $(SRC)))
+BASENAME := asm
 
 CC       := riscv64-unknown-elf-gcc
 OBJCOPY  := riscv64-unknown-elf-objcopy
@@ -28,7 +28,7 @@ TEXTADDR := 0x00000000
 OBJ  := $(BUILD_DIR)/$(BASENAME).o
 ELF  := $(BUILD_DIR)/$(BASENAME).elf
 BIN  := $(BUILD_DIR)/$(BASENAME).bin
-HEX  := $(BUILD_DIR)/$(BASENAME).hex
+HEX  := $(BUILD_DIR)/$(BASENAME).mem
 DUMP := $(BUILD_DIR)/$(BASENAME).dump
 
 # ========= Rules =========

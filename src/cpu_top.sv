@@ -173,6 +173,16 @@ assign exception = illegal_instr || load_misalign_except || store_misalign_excep
 //         $error("Store misalignment exception at PC = %h, addr = %h", current_pc, alu_result);
 // end
 
+logic [31:0] cycle_counter;
+always_ff @(posedge clk) begin
+    if(!reset_n) begin
+        cycle_counter <= 32'd0;
+    end
+    else begin
+        cycle_counter <= cycle_counter + 1'b1;
+    end
+end
+
 always_comb begin
     unique case(alu_src_a_sel)
         ALU_SRC_A_RS1: alu_a = rs1_data;
