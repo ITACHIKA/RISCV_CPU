@@ -16,6 +16,7 @@ always_comb begin
         F3_BGE: take=~less_signed;
         F3_BLTU: take=less_unsigned;
         F3_BGEU: take=~less_unsigned;
+        default: take=0;
     endcase
 end
 
