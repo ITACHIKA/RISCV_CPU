@@ -2,22 +2,22 @@
 .globl _start
 
 _start:
-    li t0, 45
+    li t0, -45
     sw t0, 0(x0)
 
-    li t0, 22
+    li t0, -22
     sw t0, 4(x0)
 
-    li t0, 35
+    li t0, -35
     sw t0, 8(x0)
 
-    li t0, 42
+    li t0, -42
     sw t0, 12(x0)
 
-    li t0, 52
+    li t0, -52
     sw t0, 16(x0)
 
-    li t0, 59
+    li t0, -59
     sw t0, 20(x0)
 
     li x1, 0
