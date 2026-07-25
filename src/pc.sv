@@ -1,11 +1,12 @@
 `timescale 1ns / 1ps
 import riscv_pkg::PC_START;
+import riscv_pkg::XLEN;
 
 module pc (
     input logic clk,
     input logic reset_n,
-    input logic [31:0] next_pc,
-    output logic [31:0] current_pc
+    input logic [XLEN-1:0] next_pc,
+    output logic [XLEN-1:0] current_pc
 );
 
 always_ff @(posedge clk) begin
