@@ -149,8 +149,8 @@ dmem dmem(
 
 lsu lsu(
     .wren(mem_we),
-    .addr(alu_result),
-    .store_data(rs2_data),
+    .addr(alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
+    .store_data(rs2_data), // riscv store instruction always stores data from rs2
     .mem_data(dmem_output_raw),
     .memsize(memsize),
     .memsign(memsign),
