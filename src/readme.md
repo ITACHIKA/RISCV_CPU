@@ -145,6 +145,8 @@ Generates the single-cycle datapath control signals from `opcode`, `funct3`, and
 
 `mem_re` is not currently connected to `dmem` because the data RAM uses asynchronous reads. It only represents the controller's intent to perform a read. The `debug` signal is asserted for load instructions and preserved with a synthesis attribute for observation.
 
+ALU opcode decode is combined with other control signals
+
 ### `registers.sv` — General-Purpose Register File
 
 Implements 32 general-purpose 32-bit registers:
