@@ -10,6 +10,7 @@ logic clk;
 assign reset_n = ~reset;
 assign clk = sysclk;
 logic [31:0] current_pc;
+logic [31:0] pcplus4;
 logic [31:0] next_pc;
 logic [31:0] instr;
 
@@ -50,6 +51,12 @@ logic [3:0] wstrb;
 logic load_misalign_except;
 logic store_misalign_except;
 
+if_id_reg_t if_id_reg_q, if_id_reg_d;
+id_ex_reg_t id_ex_reg_q, id_ex_reg_d;
+ex_mem_reg_t ex_mem_reg_q, ex_mem_reg_d;
+mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
+
+
 comparator comparator(
     .a(alu_a),
     .b(alu_b),
@@ -78,8 +85,14 @@ imem imem(
     .instruction(instr)
 );
 
+always_comb begin
+    if_id_reg_d.pcplus4 = current_pc + 4;
+    if_id_reg_d.pc = current_pc;
+    if_id_reg_d.instruction = instr;
+end
+
 decode decode(
-    .instruction(instr),
+    .instruction(if_id_reg_q.instruction),
     .opcode(opcode),
     .imm_type(imm_type),
     .funct3(funct3),
@@ -97,18 +110,18 @@ control control(
     .funct7(funct7),
     .opcode(opcode),
 
-    .reg_we(reg_we),
-    .mem_re(mem_re),
-    .mem_we(mem_we),
-    .wb_sel(wb_sel),
-    .alu_op(alu_op),
-    .pc_sel(pc_sel),
+    .reg_we(id_ex_reg_d.reg_we),
+    .mem_re(id_ex_reg_d.mem_re),
+    .mem_we(id_ex_reg_d.mem_we),
+    .wb_sel(id_ex_reg_d.wb_sel),
+    .alu_op(id_ex_reg_d.alu_op),
+    .pc_sel(id_ex_reg_d.pc_sel),
     .illegal_instr(illegal_instr),
-    .alu_src_a_sel(alu_src_a_sel),
-    .alu_src_b_sel(alu_src_b_sel),
+    .alu_src_a_sel(id_ex_reg_d.alu_src_a_sel),
+    .alu_src_b_sel(id_ex_reg_d.alu_src_b_sel),
 
-    .memsize(memsize),
-    .memsign(memsign)
+    .memsize(id_ex_reg_d.memsize),
+    .memsign(id_ex_reg_d.memsign)
 );
 
 registers registers(
@@ -116,44 +129,44 @@ registers registers(
     .reset_n(reset_n),
     .rs1_addr(rs1),
     .rs2_addr(rs2),
-    .rd_addr(rd),
+    .rd_addr(mem_wb_reg_q.rd), // have to use rd from wb stage, because the rd in decode stage may be overwritten by next instruction
     .rd_data(wb_data), //rd register data, not read data
-    .rd_we(reg_we),
-    .rs1_data(rs1_data),
-    .rs2_data(rs2_data)
+    .rd_we(mem_wb_reg_q.reg_we),
+    .rs1_data(id_ex_reg_d.rs1_data),
+    .rs2_data(id_ex_reg_d.rs2_data)
 );
 
 imm_gen imm_gen(
-    .instruction(instr),
+    .instruction(if_id_reg_q.instruction),
     .imm_type(imm_type),
-    .imm_out(imm)
+    .imm_out(id_ex_reg_d.imm)
 );
 
 alu alu(
     .a(alu_a),
     .b(alu_b),
-    .alu_op(alu_op),
+    .alu_op(id_ex_reg_q.alu_op),
     .less_signed(less_signed),
     .less_unsigned(less_unsigned),
-    .result(alu_result)
+    .result(ex_mem_reg_d.alu_result)
 );
 
 dmem dmem(
     .clk(clk),
-    .wren(mem_we),
-    .addr(alu_result),
+    .wren(ex_mem_reg_q.mem_we),
+    .addr(ex_mem_reg_q.alu_result),
     .wdata(mem_wdata),
     .rdata(dmem_output_raw),
     .wstrb(wstrb)
 );
 
 lsu lsu(
-    .wren(mem_we),
-    .addr(alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
-    .store_data(rs2_data), // riscv store instruction always stores data from rs2
+    .wren(ex_mem_reg_q.mem_we),
+    .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
+    .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
     .mem_data(dmem_output_raw),
-    .memsize(memsize),
-    .memsign(memsign),
+    .memsize(ex_mem_reg_q.memsize),
+    .memsign(ex_mem_reg_q.memsign),
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
     .load_data(dmem_output),
@@ -173,6 +186,22 @@ assign exception = illegal_instr || load_misalign_except || store_misalign_excep
 //         $error("Store misalignment exception at PC = %h, addr = %h", current_pc, alu_result);
 // end
 
+//pipeline registers
+always_ff @(posedge clk) begin
+    if(!reset_n) begin
+        if_id_reg_q <= '0;
+        id_ex_reg_q <= '0;
+        ex_mem_reg_q <= '0;
+        mem_wb_reg_q <= '0;
+    end
+    else begin
+        if_id_reg_q <= if_id_reg_d;
+        id_ex_reg_q <= id_ex_reg_d;
+        ex_mem_reg_q <= ex_mem_reg_d;
+        mem_wb_reg_q <= mem_wb_reg_d;
+    end
+end
+
 logic [31:0] cycle_counter;
 always_ff @(posedge clk) begin
     if(!reset_n) begin
@@ -184,33 +213,39 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
-    unique case(alu_src_a_sel)
-        ALU_SRC_A_RS1: alu_a = rs1_data;
-        ALU_SRC_A_PC: alu_a = current_pc;
+    unique case(id_ex_reg_q.alu_src_a_sel)
+        ALU_SRC_A_RS1: alu_a = id_ex_reg_q.rs1_data;
+        ALU_SRC_A_PC: alu_a = id_ex_reg_q.pc;
         default: alu_a = 32'd0;
     endcase
 end
 
 always_comb begin
-    unique case(alu_src_b_sel)
-        ALU_SRC_B_RS2: alu_b = rs2_data;
-        ALU_SRC_B_IMM: alu_b = imm;
+    unique case(id_ex_reg_q.alu_src_b_sel)
+        ALU_SRC_B_RS2: alu_b = id_ex_reg_q.rs2_data;
+        ALU_SRC_B_IMM: alu_b = id_ex_reg_q.imm;
         default: alu_b = 32'd0;
     endcase
 end
 
 always_comb begin
-    unique case(wb_sel)
-        WB_ALU: wb_data = alu_result;
-        WB_MEM: wb_data = dmem_output;
-        WB_PC: wb_data = current_pc + 4; //for JAL
+    unique case(mem_wb_reg_q.wb_sel)
+        WB_ALU: wb_data = mem_wb_reg_q.alu_result;
+        WB_MEM: wb_data = mem_wb_reg_q.mem_data;
+        WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL
         WB_CMP: wb_data = {31'd0, eq};
         default: wb_data = 32'd0;
     endcase
 end
 
+logic [31:0] pcplusimm;
+
 always_comb begin
-    unique case(pc_sel)
+    pcplusimm = id_ex_reg_q.pc + id_ex_reg_q.imm;
+end
+
+always_comb begin
+    unique case(id_ex_reg_q.pc_sel)
         PC_NEXT: next_pc = current_pc + 4;
         PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
         PC_JAL: next_pc = alu_result;

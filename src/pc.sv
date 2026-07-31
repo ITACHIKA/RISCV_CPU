@@ -1,3 +1,4 @@
+// IF stage
 `timescale 1ns / 1ps
 import riscv_pkg::PC_START;
 import riscv_pkg::XLEN;
