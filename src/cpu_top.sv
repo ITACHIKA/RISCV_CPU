@@ -9,41 +9,42 @@ logic reset_n;
 logic clk;
 assign reset_n = ~reset;
 assign clk = sysclk;
-logic [31:0] current_pc;
-logic [31:0] pcplus4;
-logic [31:0] next_pc;
-logic [31:0] instr;
+logic [31:0] current_pc_if;
+logic [31:0] next_pc_if;
+logic [31:0] instr_if;
 
-opcode_t opcode;
-funct3_t funct3;
-funct7_t funct7;
-logic [4:0] rs1,rs2,rd;
+opcode_t opcode_id;
+funct3_t funct3_id;
+funct7_t funct7_id;
+logic [4:0] rs1_id,rs2_id,rd_id;
 imm_type_t imm_type;
 
-logic reg_we;
-logic mem_re;
-logic mem_we;
-wb_sel_t wb_sel;
-alu_op_t alu_op;
-pc_sel_t pc_sel;
+// control signals
+logic reg_we_id;
+logic mem_re_id;
+logic mem_we_id;
+wb_sel_t wb_sel_id;
+alu_op_t alu_op_id;
+pc_sel_t pc_sel_id;
 logic illegal_instr;
-alu_src_a_sel_t alu_src_a_sel;
-alu_src_b_sel_t alu_src_b_sel;
+alu_src_a_sel_t alu_src_a_sel_id;
+alu_src_b_sel_t alu_src_b_sel_id;
+mem_size_t memsize_id;
+mem_sign_t memsign_id;
 
-logic [31:0] rs1_data, rs2_data;
-logic [31:0] imm;
-logic [31:0] alu_a, alu_b;
-logic [31:0] alu_result;
+logic [31:0] rs1_data_id, rs2_data_id;
+logic [31:0] imm_id;
+logic [31:0] alu_a_ex, alu_b_ex;
+logic [31:0] alu_result_ex;
 logic [31:0] wb_data;
 
-logic eq;
-logic less_signed;
-logic less_unsigned;
+logic eq_ex;
+logic less_signed_ex;
+logic less_unsigned_ex;
 
 logic take;
 
-mem_size_t memsize;
-mem_sign_t memsign;
+
 logic [31:0] mem_wdata;
 logic [31:0] dmem_output_raw;
 logic [31:0] dmem_output;
@@ -56,100 +57,125 @@ id_ex_reg_t id_ex_reg_q, id_ex_reg_d;
 ex_mem_reg_t ex_mem_reg_q, ex_mem_reg_d;
 mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 
+branch_predict_result_t branch_predict_result_if;
 
 comparator comparator(
-    .a(alu_a),
-    .b(alu_b),
-    .eq(eq),
-    .less_signed(less_signed),
-    .less_unsigned(less_unsigned)
+    .a(alu_a_ex),
+    .b(alu_b_ex),
+    .eq(eq_ex),
+    .less_signed(less_signed_ex),
+    .less_unsigned(less_unsigned_ex)
 );
 
 branch branch(
-    .funct3(funct3),
-    .eq(eq),
-    .less_signed(less_signed),
-    .less_unsigned(less_unsigned),
+    .funct3(funct3_id),
+    .eq(eq_ex),
+    .less_signed(less_signed_ex),
+    .less_unsigned(less_unsigned_ex),
     .take(take)
+);
+
+branch_predict branch_predict(
+    .clk           (clk),
+    .reset_n       (reset_n),
+    .pc            (current_pc_if),
+    .branch_predict_result(branch_predict_result_if)
 );
 
 pc pc(
     .clk(clk),
     .reset_n(reset_n),
-    .next_pc(next_pc),
-    .current_pc(current_pc)
+    .next_pc(next_pc_if),
+    .current_pc(current_pc_if)
 );
 
 imem imem(
-    .addr(current_pc),
-    .instruction(instr)
+    .addr(current_pc_if),
+    .instruction(instr_if)
 );
 
 always_comb begin
-    if_id_reg_d.pcplus4 = current_pc + 4;
-    if_id_reg_d.pc = current_pc;
-    if_id_reg_d.instruction = instr;
-end
+    if_id_reg_d.pcplus4 = current_pc_if + 4;
+    if_id_reg_d.pc = current_pc_if;
+    if_id_reg_d.instruction = instr_if;
+end // connect actual signal to stage register
 
 decode decode(
     .instruction(if_id_reg_q.instruction),
-    .opcode(opcode),
+    .opcode(opcode_id),
     .imm_type(imm_type),
-    .funct3(funct3),
-    .funct7(funct7),
-    .rs1(rs1),
-    .rs2(rs2),
-    .rd(rd)
+    .funct3(funct3_id),
+    .funct7(funct7_id),
+    .rs1(rs1_id),
+    .rs2(rs2_id),
+    .rd(rd_id)
 );
 
 control control(
-    .rs1(rs1),
-    .rs2(rs2),
-    .rd(rd),
-    .funct3(funct3),
-    .funct7(funct7),
-    .opcode(opcode),
-
-    .reg_we(id_ex_reg_d.reg_we),
-    .mem_re(id_ex_reg_d.mem_re),
-    .mem_we(id_ex_reg_d.mem_we),
-    .wb_sel(id_ex_reg_d.wb_sel),
-    .alu_op(id_ex_reg_d.alu_op),
-    .pc_sel(id_ex_reg_d.pc_sel),
+    .rs1(rs1_id),
+    .rs2(rs2_id),
+    .rd(rd_id),
+    .funct3(funct3_id),
+    .funct7(funct7_id),
+    .opcode(opcode_id),
+    .reg_we(reg_we_id),
+    .mem_re(mem_re_id),
+    .mem_we(mem_we_id),
+    .wb_sel(wb_sel_id),
+    .alu_op(alu_op_id),
+    .pc_sel(pc_sel_id),
     .illegal_instr(illegal_instr),
-    .alu_src_a_sel(id_ex_reg_d.alu_src_a_sel),
-    .alu_src_b_sel(id_ex_reg_d.alu_src_b_sel),
+    .alu_src_a_sel(alu_src_a_sel_id),
+    .alu_src_b_sel(alu_src_b_sel_id),
 
-    .memsize(id_ex_reg_d.memsize),
-    .memsign(id_ex_reg_d.memsign)
+    .memsize(memsize_id),
+    .memsign(memsign_id)
 );
+
+assign id_ex_reg_d.reg_we = reg_we_id;
+assign id_ex_reg_d.mem_re = mem_re_id;
+assign id_ex_reg_d.mem_we = mem_we_id;
+assign id_ex_reg_d.wb_sel = wb_sel_id;
+assign id_ex_reg_d.alu_op = alu_op_id;
+assign id_ex_reg_d.pc_sel = pc_sel_id;
+assign id_ex_reg_d.alu_src_a_sel = alu_src_a_sel_id;
+assign id_ex_reg_d.alu_src_b_sel = alu_src_b_sel_id;
+assign id_ex_reg_d.memsize = memsize_id;
+assign id_ex_reg_d.memsign = memsign_id;
 
 registers registers(
     .clk(clk),
     .reset_n(reset_n),
-    .rs1_addr(rs1),
-    .rs2_addr(rs2),
+    .rs1_addr(rs1_id),
+    .rs2_addr(rs2_id),
     .rd_addr(mem_wb_reg_q.rd), // have to use rd from wb stage, because the rd in decode stage may be overwritten by next instruction
     .rd_data(wb_data), //rd register data, not read data
     .rd_we(mem_wb_reg_q.reg_we),
-    .rs1_data(id_ex_reg_d.rs1_data),
-    .rs2_data(id_ex_reg_d.rs2_data)
+    .rs1_data(rs1_data_id),
+    .rs2_data(rs2_data_id)
 );
+
+assign id_ex_reg_d.rs1_data = rs1_data_id;
+assign id_ex_reg_d.rs2_data = rs2_data_id;
 
 imm_gen imm_gen(
     .instruction(if_id_reg_q.instruction),
     .imm_type(imm_type),
-    .imm_out(id_ex_reg_d.imm)
+    .imm_out(imm_id)
 );
 
+assign id_ex_reg_d.imm = imm_id;
+
 alu alu(
-    .a(alu_a),
-    .b(alu_b),
+    .a(alu_a_ex),
+    .b(alu_b_ex),
     .alu_op(id_ex_reg_q.alu_op),
-    .less_signed(less_signed),
-    .less_unsigned(less_unsigned),
-    .result(ex_mem_reg_d.alu_result)
+    .less_signed(less_signed_ex),
+    .less_unsigned(less_unsigned_ex),
+    .result(alu_result_ex)
 );
+
+assign ex_mem_reg_d.alu_result = alu_result_ex;
 
 dmem dmem(
     .clk(clk),
@@ -214,17 +240,17 @@ end
 
 always_comb begin
     unique case(id_ex_reg_q.alu_src_a_sel)
-        ALU_SRC_A_RS1: alu_a = id_ex_reg_q.rs1_data;
-        ALU_SRC_A_PC: alu_a = id_ex_reg_q.pc;
-        default: alu_a = 32'd0;
+        ALU_SRC_A_RS1: alu_a_ex = id_ex_reg_q.rs1_data;
+        ALU_SRC_A_PC: alu_a_ex = id_ex_reg_q.pc;
+        default: alu_a_ex = 32'd0;
     endcase
 end
 
 always_comb begin
     unique case(id_ex_reg_q.alu_src_b_sel)
-        ALU_SRC_B_RS2: alu_b = id_ex_reg_q.rs2_data;
-        ALU_SRC_B_IMM: alu_b = id_ex_reg_q.imm;
-        default: alu_b = 32'd0;
+        ALU_SRC_B_RS2: alu_b_ex = id_ex_reg_q.rs2_data;
+        ALU_SRC_B_IMM: alu_b_ex = id_ex_reg_q.imm;
+        default: alu_b_ex = 32'd0;
     endcase
 end
 
@@ -233,7 +259,7 @@ always_comb begin
         WB_ALU: wb_data = mem_wb_reg_q.alu_result;
         WB_MEM: wb_data = mem_wb_reg_q.mem_data;
         WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL
-        WB_CMP: wb_data = {31'd0, eq};
+        WB_CMP: wb_data = {31'd0, eq_ex};
         default: wb_data = 32'd0;
     endcase
 end
@@ -244,15 +270,20 @@ always_comb begin
     pcplusimm = id_ex_reg_q.pc + id_ex_reg_q.imm;
 end
 
+// always_comb begin
+//     unique case(id_ex_reg_q.pc_sel)
+//         PC_NEXT: next_pc = current_pc + 4;
+//         PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
+//         PC_JAL: next_pc = alu_result;
+//         PC_JALR: next_pc = alu_result & 32'hFFFF_FFFE;
+//         PC_TRAP: next_pc = 32'h0000_0000;
+//         default: next_pc = current_pc + 4;
+//     endcase
+// end
+
 always_comb begin
-    unique case(id_ex_reg_q.pc_sel)
-        PC_NEXT: next_pc = current_pc + 4;
-        PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
-        PC_JAL: next_pc = alu_result;
-        PC_JALR: next_pc = alu_result & 32'hFFFF_FFFE;
-        PC_TRAP: next_pc = 32'h0000_0000;
-        default: next_pc = current_pc + 4;
-    endcase
+    next_pc_if = branch_predict_result_if.predicted_pc; // currently it is static prediction of always not taken
+
 end
 
 endmodule
