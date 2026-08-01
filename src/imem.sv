@@ -1,7 +1,10 @@
 // IF stage
 `timescale 1ns / 1ps
 module imem(
+    // Inputs
     input logic [31:0] addr,
+
+    // Outputs
     output logic [31:0] instruction
 );
 logic [31:0] instr_rom [0:255];

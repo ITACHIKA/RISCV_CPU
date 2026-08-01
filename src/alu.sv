@@ -1,11 +1,14 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 module alu (
+    // Inputs
     input logic [31:0] a,
     input logic [31:0] b,
     input alu_op_t alu_op,
     input logic less_signed,
     input logic less_unsigned,
+
+    // Outputs
     output logic [31:0] result
 );
 

@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 module registers(
+    // Inputs
     input logic clk,
     input logic reset_n,
 
@@ -9,6 +10,7 @@ module registers(
     input logic [31:0] rd_data,
     input logic rd_we,
 
+    // Outputs
     output logic [31:0] rs1_data,
     output logic [31:0] rs2_data
 );

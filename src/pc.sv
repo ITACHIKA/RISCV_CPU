@@ -4,9 +4,12 @@ import riscv_pkg::PC_START;
 import riscv_pkg::XLEN;
 
 module pc (
+    // Inputs
     input logic clk,
     input logic reset_n,
     input logic [XLEN-1:0] next_pc,
+
+    // Outputs
     output logic [XLEN-1:0] current_pc
 );
 

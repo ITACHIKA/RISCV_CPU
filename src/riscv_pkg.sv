@@ -143,6 +143,8 @@ typedef struct packed {
     logic [31:0] pc;
     logic [31:0] pcplus4;
     logic [31:0] instruction;
+
+    logic [31:0] predicted_pc; // predicted pc from branch predictor
 } if_id_reg_t;
 
 typedef struct packed {
@@ -167,6 +169,11 @@ typedef struct packed {
     mem_sign_t memsign;
     wb_sel_t wb_sel;
     pc_sel_t pc_sel;
+
+    // predicted pc from branch predictor
+    // have to be passed to EX stage
+    logic [31:0] predicted_pc;
+
 } id_ex_reg_t;
 
 typedef struct packed {

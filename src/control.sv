@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 module control(
+    // Inputs
     input logic [4:0] rs1,
     input logic [4:0] rs2,
     input logic [4:0] rd,
@@ -8,6 +9,7 @@ module control(
     input funct7_t funct7,
     input opcode_t opcode,
 
+    // Outputs
     output logic    reg_we,
     output logic    mem_re,
     output logic    mem_we,

@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 module lsu( //load store unit
+    // Inputs
     input logic wren,
     //input logic wren, //not for single cycle cpu
     input logic [31:0] addr,
@@ -8,6 +9,8 @@ module lsu( //load store unit
     input logic [31:0] mem_data, //from mem raw data
     input mem_size_t memsize,
     input mem_sign_t memsign,
+
+    // Outputs
     output logic [3:0] wstrb,
     output logic [31:0] mem_wdata, //output to mem after process
     output logic [31:0] load_data, //output to rd after process,

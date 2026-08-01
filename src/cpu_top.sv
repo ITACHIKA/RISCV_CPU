@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 module riscv_cpu (
+    // Inputs
     input logic sysclk,
     input logic reset
 );
@@ -60,48 +61,60 @@ mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 branch_predict_result_t branch_predict_result_if;
 
 comparator comparator(
+    // Inputs
     .a(alu_a_ex),
     .b(alu_b_ex),
+
+    // Outputs
     .eq(eq_ex),
     .less_signed(less_signed_ex),
     .less_unsigned(less_unsigned_ex)
 );
 
 branch branch(
+    // Inputs
     .funct3(funct3_id),
     .eq(eq_ex),
     .less_signed(less_signed_ex),
     .less_unsigned(less_unsigned_ex),
+
+    // Outputs
     .take(take)
 );
 
 branch_predict branch_predict(
+    // Inputs
     .clk           (clk),
     .reset_n       (reset_n),
     .pc            (current_pc_if),
+
+    // Outputs
     .branch_predict_result(branch_predict_result_if)
 );
 
 pc pc(
+    // Inputs
     .clk(clk),
     .reset_n(reset_n),
     .next_pc(next_pc_if),
+
+    // Outputs
     .current_pc(current_pc_if)
 );
 
 imem imem(
+    // Inputs
     .addr(current_pc_if),
+
+    // Outputs
     .instruction(instr_if)
 );
 
-always_comb begin
-    if_id_reg_d.pcplus4 = current_pc_if + 4;
-    if_id_reg_d.pc = current_pc_if;
-    if_id_reg_d.instruction = instr_if;
-end // connect actual signal to stage register
-
 decode decode(
+    // Inputs
     .instruction(if_id_reg_q.instruction),
+
+    // Outputs
     .opcode(opcode_id),
     .imm_type(imm_type),
     .funct3(funct3_id),
@@ -112,12 +125,15 @@ decode decode(
 );
 
 control control(
+    // Inputs
     .rs1(rs1_id),
     .rs2(rs2_id),
     .rd(rd_id),
     .funct3(funct3_id),
     .funct7(funct7_id),
     .opcode(opcode_id),
+
+    // Outputs
     .reg_we(reg_we_id),
     .mem_re(mem_re_id),
     .mem_we(mem_we_id),
@@ -127,23 +143,12 @@ control control(
     .illegal_instr(illegal_instr),
     .alu_src_a_sel(alu_src_a_sel_id),
     .alu_src_b_sel(alu_src_b_sel_id),
-
     .memsize(memsize_id),
     .memsign(memsign_id)
 );
 
-assign id_ex_reg_d.reg_we = reg_we_id;
-assign id_ex_reg_d.mem_re = mem_re_id;
-assign id_ex_reg_d.mem_we = mem_we_id;
-assign id_ex_reg_d.wb_sel = wb_sel_id;
-assign id_ex_reg_d.alu_op = alu_op_id;
-assign id_ex_reg_d.pc_sel = pc_sel_id;
-assign id_ex_reg_d.alu_src_a_sel = alu_src_a_sel_id;
-assign id_ex_reg_d.alu_src_b_sel = alu_src_b_sel_id;
-assign id_ex_reg_d.memsize = memsize_id;
-assign id_ex_reg_d.memsign = memsign_id;
-
 registers registers(
+    // Inputs
     .clk(clk),
     .reset_n(reset_n),
     .rs1_addr(rs1_id),
@@ -151,48 +156,55 @@ registers registers(
     .rd_addr(mem_wb_reg_q.rd), // have to use rd from wb stage, because the rd in decode stage may be overwritten by next instruction
     .rd_data(wb_data), //rd register data, not read data
     .rd_we(mem_wb_reg_q.reg_we),
+
+    // Outputs
     .rs1_data(rs1_data_id),
     .rs2_data(rs2_data_id)
 );
 
-assign id_ex_reg_d.rs1_data = rs1_data_id;
-assign id_ex_reg_d.rs2_data = rs2_data_id;
-
 imm_gen imm_gen(
+    // Inputs
     .instruction(if_id_reg_q.instruction),
     .imm_type(imm_type),
+
+    // Outputs
     .imm_out(imm_id)
 );
 
-assign id_ex_reg_d.imm = imm_id;
-
 alu alu(
+    // Inputs
     .a(alu_a_ex),
     .b(alu_b_ex),
     .alu_op(id_ex_reg_q.alu_op),
     .less_signed(less_signed_ex),
     .less_unsigned(less_unsigned_ex),
+
+    // Outputs
     .result(alu_result_ex)
 );
 
-assign ex_mem_reg_d.alu_result = alu_result_ex;
-
 dmem dmem(
+    // Inputs
     .clk(clk),
     .wren(ex_mem_reg_q.mem_we),
     .addr(ex_mem_reg_q.alu_result),
     .wdata(mem_wdata),
-    .rdata(dmem_output_raw),
-    .wstrb(wstrb)
+    .wstrb(wstrb),
+
+    // Outputs
+    .rdata(dmem_output_raw)
 );
 
 lsu lsu(
+    // Inputs
     .wren(ex_mem_reg_q.mem_we),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
     .mem_data(dmem_output_raw),
     .memsize(ex_mem_reg_q.memsize),
     .memsign(ex_mem_reg_q.memsign),
+
+    // Outputs
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
     .load_data(dmem_output),
@@ -226,6 +238,50 @@ always_ff @(posedge clk) begin
         ex_mem_reg_q <= ex_mem_reg_d;
         mem_wb_reg_q <= mem_wb_reg_d;
     end
+end
+
+always_comb begin
+    if_id_reg_d.pcplus4 = current_pc_if + 4;
+    if_id_reg_d.pc = current_pc_if;
+    if_id_reg_d.instruction = instr_if;
+    if_id_reg_d.predicted_pc = branch_predict_result_if.predicted_pc; // predicted pc from branch predictor
+
+    id_ex_reg_d.pc = if_id_reg_q.pc;
+    id_ex_reg_d.pcplus4 = if_id_reg_q.pcplus4;
+    id_ex_reg_d.rs1_data = rs1_data_id;
+    id_ex_reg_d.rs2_data = rs2_data_id;
+    id_ex_reg_d.rd = rd_id;
+    id_ex_reg_d.imm = imm_id;
+    id_ex_reg_d.alu_src_a_sel = alu_src_a_sel_id;
+    id_ex_reg_d.alu_src_b_sel = alu_src_b_sel_id;
+    id_ex_reg_d.alu_op = alu_op_id;
+    id_ex_reg_d.reg_we = reg_we_id;
+    id_ex_reg_d.mem_re = mem_re_id;
+    id_ex_reg_d.mem_we = mem_we_id;
+    id_ex_reg_d.memsize = memsize_id;
+    id_ex_reg_d.memsign = memsign_id;
+    id_ex_reg_d.wb_sel = wb_sel_id;
+    id_ex_reg_d.pc_sel = pc_sel_id;
+    id_ex_reg_d.predicted_pc = if_id_reg_q.predicted_pc;
+
+    ex_mem_reg_d.pcplus4 = id_ex_reg_q.pcplus4;
+    ex_mem_reg_d.alu_result = alu_result_ex;
+    ex_mem_reg_d.rs2_data = id_ex_reg_q.rs2_data;
+    ex_mem_reg_d.rd = id_ex_reg_q.rd;
+    ex_mem_reg_d.reg_we = id_ex_reg_q.reg_we;
+    ex_mem_reg_d.mem_re = id_ex_reg_q.mem_re;
+    ex_mem_reg_d.mem_we = id_ex_reg_q.mem_we;
+    ex_mem_reg_d.memsize = id_ex_reg_q.memsize;
+    ex_mem_reg_d.memsign = id_ex_reg_q.memsign;
+    ex_mem_reg_d.wb_sel = id_ex_reg_q.wb_sel;
+
+    mem_wb_reg_d.pcplus4 = ex_mem_reg_q.pcplus4;
+    mem_wb_reg_d.alu_result = ex_mem_reg_q.alu_result;
+    mem_wb_reg_d.mem_data = dmem_output;
+    mem_wb_reg_d.rs2_data = ex_mem_reg_q.rs2_data;
+    mem_wb_reg_d.rd = ex_mem_reg_q.rd;
+    mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
+    mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
 end
 
 logic [31:0] cycle_counter;

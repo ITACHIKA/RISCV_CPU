@@ -4,8 +4,11 @@ import riscv_pkg::*;
 
 module imm_gen
 (
+    // Inputs
     input logic [31:0] instruction,
     input imm_type_t imm_type,
+
+    // Outputs
     output logic [31:0] imm_out
 );
 
