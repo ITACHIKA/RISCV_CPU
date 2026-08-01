@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 
-module imm_gen
+module imm_gen_id
 (
     // Inputs
     input logic [31:0] instruction,

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module branch(
+module branch_ex(
     // Inputs
     input funct3_t funct3,
     input logic eq,

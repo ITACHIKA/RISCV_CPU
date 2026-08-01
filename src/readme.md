@@ -100,7 +100,7 @@ The external `reset` input is active high. The top level inverts it to create th
 
 The top level combines illegal-instruction, misaligned-load, and misaligned-store conditions into an `exception` signal. The current implementation does not connect `exception` to the trap path and does not use it to suppress register or memory writes.
 
-### `pc.sv` — Program Counter
+### `pc_if.sv` — Program Counter (IF Stage)
 
 Stores the current instruction address:
 
@@ -108,7 +108,7 @@ Stores the current instruction address:
 - Synchronously resets to `PC_START` on a rising edge when `reset_n` is low.
 - Advances by four bytes during normal sequential execution.
 
-### `imem.sv` — Instruction Memory
+### `imem_if.sv` — Instruction Memory (IF Stage)
 
 Implements a `256 × 32-bit` combinational-read ROM:
 
@@ -118,7 +118,11 @@ Implements a `256 × 32-bit` combinational-read ROM:
 
 The `asm.mem` path is relative to the simulator's working directory, which is not necessarily the RTL source directory.
 
-### `decode.sv` — Instruction Field Decoder
+### `branch_predict_if.sv` — Branch Predictor (IF Stage)
+
+Implements the current static branch prediction policy. It always predicts that control flow will continue at `PC + 4` and passes the predicted direction and address into the pipeline.
+
+### `decode_id.sv` — Instruction Field Decoder (ID Stage)
 
 Directly extracts the following fields from the 32-bit instruction:
 
@@ -131,7 +135,7 @@ Directly extracts the following fields from the 32-bit instruction:
 
 It also selects the immediate format based on the opcode. This module only separates instruction fields and classifies the immediate; `control` is responsible for checking whether an instruction encoding is valid.
 
-### `control.sv` — Main Control Unit
+### `control_id.sv` — Main Control Unit (ID Stage)
 
 Generates the single-cycle datapath control signals from `opcode`, `funct3`, and `funct7`:
 
@@ -147,7 +151,7 @@ Generates the single-cycle datapath control signals from `opcode`, `funct3`, and
 
 ALU opcode decode is combined with other control signals
 
-### `registers.sv` — General-Purpose Register File
+### `registers_id_wb.sv` — General-Purpose Register File (ID/WB Stages)
 
 Implements 32 general-purpose 32-bit registers:
 
@@ -157,7 +161,7 @@ Implements 32 general-purpose 32-bit registers:
 - Writes to `x0` are ignored.
 - All registers are synchronously cleared on reset.
 
-### `imm_gen.sv` — Immediate Generator
+### `imm_gen_id.sv` — Immediate Generator (ID Stage)
 
 Reconstructs and extends the instruction immediate according to the format selected by `decode`:
 
@@ -165,7 +169,7 @@ Reconstructs and extends the instruction immediate according to the format selec
 - U-type immediates occupy the upper 20 bits, with the lower 12 bits set to zero.
 - B- and J-type immediates have a zero least-significant bit to form a two-byte-aligned offset.
 
-### `comparator.sv` — Operand Comparator
+### `comparator_ex.sv` — Operand Comparator (EX Stage)
 
 Produces three comparison results in parallel:
 
@@ -175,7 +179,7 @@ Produces three comparison results in parallel:
 
 These results are shared by SLT/SLTU ALU operations and conditional branch decisions.
 
-### `branch.sv` — Conditional Branch Decision
+### `branch_ex.sv` — Conditional Branch Decision (EX Stage)
 
 Generates the `take` signal from the branch instruction's `funct3` and the comparator outputs:
 
@@ -190,7 +194,7 @@ Generates the `take` signal from the branch instruction's `funct3` and the compa
 
 When the branch is taken, the next PC is `current_pc + imm`; otherwise, it is `current_pc + 4`.
 
-### `alu.sv` — Arithmetic Logic Unit
+### `alu_ex.sv` — Arithmetic Logic Unit (EX Stage)
 
 Supports the following operations:
 
@@ -202,7 +206,7 @@ Supports the following operations:
 
 Shift operations use only the lowest five bits of operand B, matching the RV32 shift range.
 
-### `lsu.sv` — Load/Store Unit
+### `lsu_mem.sv` — Load/Store Unit (MEM Stage)
 
 Sits between the CPU datapath and `dmem` and handles accesses of different widths:
 
@@ -214,7 +218,7 @@ Sits between the CPU datapath and `dmem` and handles accesses of different width
 
 Data is arranged in little-endian order. For example, byte offset zero maps to the lowest eight bits of a 32-bit memory word.
 
-### `dmem.sv` — Data Memory
+### `dmem_mem.sv` — Data Memory (MEM Stage)
 
 Implements a `256 × 32-bit` data RAM:
 
@@ -299,7 +303,7 @@ build/asm.dump  disassembly listing
 
 The Makefile also defines an optional `build/asm.bin` raw binary target, but the default `all` target does not generate it.
 
-`imem.sv` always reads a file named `asm.mem`, while the Makefile generates `build/asm.mem`. Before simulation, copy it into the simulator's working directory or add `build/asm.mem` to Vivado as a memory initialization file. For example, when running the simulator from the source directory:
+`imem_if.sv` always reads a file named `asm.mem`, while the Makefile generates `build/asm.mem`. Before simulation, copy it into the simulator's working directory or add `build/asm.mem` to Vivado as a memory initialization file. For example, when running the simulator from the source directory:
 
 ```powershell
 Copy-Item .\build\asm.mem .\asm.mem
@@ -356,17 +360,19 @@ The constraint for `btn[1]` is still enabled, but the `riscv_cpu` top level does
 src/
 ├── riscv_pkg.sv       # Shared types, enumerations, and RV32I encodings
 ├── cpu_top.sv         # riscv_cpu top level and complete datapath
-├── pc.sv              # Program counter
-├── imem.sv            # Instruction ROM
-├── decode.sv          # Instruction field decoder
-├── control.sv         # Main control unit
-├── registers.sv       # 32 × 32-bit general-purpose register file
-├── imm_gen.sv         # Immediate generator
-├── comparator.sv      # Signed and unsigned comparator
-├── branch.sv          # Conditional branch decision
-├── alu.sv             # Arithmetic logic unit
-├── lsu.sv             # Load/store formatting and alignment checks
-├── dmem.sv            # Data RAM
+├── pc_if.sv                    # IF: program counter
+├── imem_if.sv                  # IF: instruction ROM
+├── branch_predict_if.sv        # IF: branch predictor
+├── decode_id.sv                # ID: instruction field decoder
+├── control_id.sv               # ID: main control unit
+├── registers_id_wb.sv          # ID/WB: general-purpose register file
+├── imm_gen_id.sv               # ID: immediate generator
+├── comparator_ex.sv            # EX: signed and unsigned comparator
+├── branch_ex.sv                # EX: conditional branch decision
+├── control_flow_resolver_ex.sv # EX: reserved control-flow resolver
+├── alu_ex.sv                   # EX: arithmetic logic unit
+├── lsu_mem.sv                  # MEM: load/store formatting and alignment checks
+├── dmem_mem.sv                 # MEM: data RAM
 ├── cpu_tb.sv          # Basic simulation testbench
 ├── asm/               # RV32I assembly test programs
 ├── build/             # Program files generated by the Makefile

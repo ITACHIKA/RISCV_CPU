@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module lsu( //load store unit
+module lsu_mem( //load store unit
     // Inputs
     input logic wren,
     //input logic wren, //not for single cycle cpu

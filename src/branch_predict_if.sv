@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module branch_predict(
+module branch_predict_if(
     // Inputs
     input logic clk,
     input logic reset_n,

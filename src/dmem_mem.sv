@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module dmem(
+module dmem_mem(
     // Inputs
     input logic clk,
     input logic wren,

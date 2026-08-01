@@ -1,6 +1,5 @@
-// IF stage
 `timescale 1ns / 1ps
-module imem(
+module imem_if(
     // Inputs
     input logic [31:0] addr,
 

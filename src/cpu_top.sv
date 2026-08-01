@@ -60,7 +60,7 @@ mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 
 branch_predict_result_t branch_predict_result_if;
 
-comparator comparator(
+comparator_ex comparator(
     // Inputs
     .a(alu_a_ex),
     .b(alu_b_ex),
@@ -71,7 +71,7 @@ comparator comparator(
     .less_unsigned(less_unsigned_ex)
 );
 
-branch branch(
+branch_ex branch(
     // Inputs
     .funct3(funct3_id),
     .eq(eq_ex),
@@ -82,7 +82,7 @@ branch branch(
     .take(take)
 );
 
-branch_predict branch_predict(
+branch_predict_if branch_predict(
     // Inputs
     .clk           (clk),
     .reset_n       (reset_n),
@@ -92,7 +92,7 @@ branch_predict branch_predict(
     .branch_predict_result(branch_predict_result_if)
 );
 
-pc pc(
+pc_if pc(
     // Inputs
     .clk(clk),
     .reset_n(reset_n),
@@ -102,7 +102,7 @@ pc pc(
     .current_pc(current_pc_if)
 );
 
-imem imem(
+imem_if imem(
     // Inputs
     .addr(current_pc_if),
 
@@ -110,7 +110,7 @@ imem imem(
     .instruction(instr_if)
 );
 
-decode decode(
+decode_id decode(
     // Inputs
     .instruction(if_id_reg_q.instruction),
 
@@ -124,7 +124,7 @@ decode decode(
     .rd(rd_id)
 );
 
-control control(
+control_id control(
     // Inputs
     .rs1(rs1_id),
     .rs2(rs2_id),
@@ -147,7 +147,7 @@ control control(
     .memsign(memsign_id)
 );
 
-registers registers(
+registers_id_wb registers(
     // Inputs
     .clk(clk),
     .reset_n(reset_n),
@@ -162,7 +162,7 @@ registers registers(
     .rs2_data(rs2_data_id)
 );
 
-imm_gen imm_gen(
+imm_gen_id imm_gen(
     // Inputs
     .instruction(if_id_reg_q.instruction),
     .imm_type(imm_type),
@@ -171,7 +171,7 @@ imm_gen imm_gen(
     .imm_out(imm_id)
 );
 
-alu alu(
+alu_ex alu(
     // Inputs
     .a(alu_a_ex),
     .b(alu_b_ex),
@@ -183,7 +183,7 @@ alu alu(
     .result(alu_result_ex)
 );
 
-dmem dmem(
+dmem_mem dmem(
     // Inputs
     .clk(clk),
     .wren(ex_mem_reg_q.mem_we),
@@ -195,7 +195,7 @@ dmem dmem(
     .rdata(dmem_output_raw)
 );
 
-lsu lsu(
+lsu_mem lsu(
     // Inputs
     .wren(ex_mem_reg_q.mem_we),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module control(
+module control_id(
     // Inputs
     input logic [4:0] rs1,
     input logic [4:0] rs2,

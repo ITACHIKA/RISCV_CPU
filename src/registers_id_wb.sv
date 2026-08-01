@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-module registers(
+module registers_id_wb(
     // Inputs
     input logic clk,
     input logic reset_n,

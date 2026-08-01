@@ -3,7 +3,7 @@
 import riscv_pkg::PC_START;
 import riscv_pkg::XLEN;
 
-module pc (
+module pc_if (
     // Inputs
     input logic clk,
     input logic reset_n,

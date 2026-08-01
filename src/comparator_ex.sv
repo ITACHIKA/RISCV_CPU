@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module comparator(
+module comparator_ex(
     // Inputs
     input logic [31:0] a,
     input logic [31:0] b,

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module decode(
+module decode_id(
     // Inputs
     input logic [31:0] instruction,
 
