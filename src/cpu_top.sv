@@ -259,7 +259,7 @@ always_comb begin
     if_id_reg_d.pcplus4 = current_pc_if + 4;
     if_id_reg_d.pc = current_pc_if;
     if_id_reg_d.instruction = instr_if;
-    if_id_reg_d.predicted_pc = branch_predict_result_if.predicted_pc; // predicted pc from branch predictor
+    if_id_reg_d.predicted_pc = pc_predict_result_if.predicted_pc; // predicted pc from branch predictor
 
     id_ex_reg_d.pc = if_id_reg_q.pc;
     id_ex_reg_d.pcplus4 = if_id_reg_q.pcplus4;
@@ -334,12 +334,6 @@ always_comb begin
         WB_CMP: wb_data = {31'd0, eq_ex};
         default: wb_data = 32'd0;
     endcase
-end
-
-logic [31:0] pcplusimm;
-
-always_comb begin
-    pcplusimm = id_ex_reg_q.pc + id_ex_reg_q.imm;
 end
 
 always_comb begin
