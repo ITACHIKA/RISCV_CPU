@@ -267,6 +267,8 @@ always_comb begin
     id_ex_reg_d.rs2_data = rs2_data_id;
     id_ex_reg_d.rd = rd_id;
     id_ex_reg_d.imm = imm_id;
+    id_ex_reg_d.rs1 = rs1_id;
+    id_ex_reg_d.rs2 = rs2_id;
     id_ex_reg_d.alu_src_a_sel = alu_src_a_sel_id;
     id_ex_reg_d.alu_src_b_sel = alu_src_b_sel_id;
     id_ex_reg_d.alu_op = alu_op_id;

@@ -156,6 +156,8 @@ typedef struct packed {
     logic [31:0] rs2_data;
     logic [4:0] rd;
     logic [31:0] imm;
+    logic [4:0] rs1;
+    logic [4:0] rs2;
 
     funct3_t funct3;
 
@@ -214,5 +216,11 @@ typedef struct packed{
     logic predict_taken;
     logic [31:0] predicted_pc;
 } pc_predict_result_t;
+
+typedef enum logic [1:0] {
+    RS_FORWARD_NONE,
+    RS_FORWARD_MEM,
+    RS_FORWARD_WB
+} rs_forward_mux_sel_t;
 
 endpackage

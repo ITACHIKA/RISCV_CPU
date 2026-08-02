@@ -7,7 +7,7 @@ module branch_predict_if(
     input logic [31:0] pc,
 
     // Outputs
-    output branch_predict_result_t branch_predict_result
+    output pc_predict_result_t branch_predict_result
 );
 
 always_comb begin
