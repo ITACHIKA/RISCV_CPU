@@ -61,6 +61,8 @@ mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 
 pc_predict_result_t pc_predict_result_if;
 
+rs_forward_mux_sel_t rs1_forward_mux_sel, rs2_forward_mux_sel;
+
 comparator_ex comparator(
     // Inputs
     .a(alu_a_ex),
@@ -227,6 +229,20 @@ lsu_mem lsu(
     .store_misalign_except(store_misalign_except)
 );
 
+hazard hazard (
+    // Inputs
+    .rs1_ex             (id_ex_reg_q.rs1),
+    .rs2_ex             (id_ex_reg_q.rs2),
+    .rd_mem             (ex_mem_reg_q.rd),
+    .rd_wb              (mem_wb_reg_q.rd),
+    .reg_we_mem         (ex_mem_reg_q.reg_we),
+    .reg_we_wb          (mem_wb_reg_q.reg_we),
+
+    // Outputs
+    .rs1_forward_mux_sel(rs1_forward_mux_sel),
+    .rs2_forward_mux_sel(rs2_forward_mux_sel)
+);
+
 logic exception;
 assign exception = illegal_instr || load_misalign_except || store_misalign_except;
 
@@ -312,9 +328,30 @@ always_ff @(posedge clk) begin
     end
 end
 
+// forwarding mux for RS1 and RS2
+logic [31:0] alu_a_forward_result_ex, alu_b_forward_result_ex;
+
+always_comb begin
+    unique case(rs1_forward_mux_sel)
+        RS_FORWARD_NONE: alu_a_forward_result_ex = id_ex_reg_q.rs1_data;
+        RS_FORWARD_MEM: alu_a_forward_result_ex = ex_mem_reg_q.alu_result;
+        RS_FORWARD_WB: alu_a_forward_result_ex = wb_data;
+        default: alu_a_forward_result_ex = 32'd0;
+    endcase
+end
+
+always_comb begin
+    unique case(rs2_forward_mux_sel)
+        RS_FORWARD_NONE: alu_b_forward_result_ex = id_ex_reg_q.rs2_data;
+        RS_FORWARD_MEM: alu_b_forward_result_ex = ex_mem_reg_q.alu_result;
+        RS_FORWARD_WB: alu_b_forward_result_ex = wb_data;
+        default: alu_b_forward_result_ex = 32'd0;
+    endcase
+end
+
 always_comb begin
     unique case(id_ex_reg_q.alu_src_a_sel)
-        ALU_SRC_A_RS1: alu_a_ex = id_ex_reg_q.rs1_data;
+        ALU_SRC_A_RS1: alu_a_ex = alu_a_forward_result_ex;
         ALU_SRC_A_PC: alu_a_ex = id_ex_reg_q.pc;
         default: alu_a_ex = 32'd0;
     endcase
@@ -322,7 +359,7 @@ end
 
 always_comb begin
     unique case(id_ex_reg_q.alu_src_b_sel)
-        ALU_SRC_B_RS2: alu_b_ex = id_ex_reg_q.rs2_data;
+        ALU_SRC_B_RS2: alu_b_ex = alu_b_forward_result_ex;
         ALU_SRC_B_IMM: alu_b_ex = id_ex_reg_q.imm;
         default: alu_b_ex = 32'd0;
     endcase
