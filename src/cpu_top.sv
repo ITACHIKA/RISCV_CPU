@@ -16,6 +16,11 @@ logic [31:0] instr_if;
 logic [31:0] redirect_next_pc_ex;
 logic redirect_pc_request_ex;
 
+logic imem_req_valid_if;
+logic imem_resp_ready_if;
+logic imem_req_ready_if;
+logic imem_resp_valid_if;
+
 opcode_t opcode_id;
 funct3_t funct3_id;
 funct7_t funct7_id;
@@ -119,12 +124,19 @@ pc_if pc(
     .current_pc(current_pc_if)
 );
 
+assign imem_req_valid_if = 1'b1; // for a combinational imem, always valid request and ready for response
+assign imem_resp_ready_if = 1'b1;
+
 imem_if imem(
     // Inputs
     .addr(current_pc_if),
+    .req_valid(imem_req_valid_if),
+    .resp_ready(imem_resp_ready_if),
 
     // Outputs
-    .instruction(instr_if)
+    .instruction(instr_if),
+    .req_ready(imem_req_ready_if),
+    .resp_valid(imem_resp_valid_if)
 );
 
 decode_id decode(
@@ -237,6 +249,7 @@ hazard hazard (
     .rd_wb              (mem_wb_reg_q.rd),
     .reg_we_mem         (ex_mem_reg_q.reg_we),
     .reg_we_wb          (mem_wb_reg_q.reg_we),
+    .valid_ex           (id_ex_reg_q.valid),
 
     // Outputs
     .rs1_forward_mux_sel(rs1_forward_mux_sel),
@@ -258,10 +271,10 @@ assign exception = illegal_instr || load_misalign_except || store_misalign_excep
 //pipeline registers
 always_ff @(posedge clk) begin
     if(!reset_n) begin
-        if_id_reg_q <= '0;
-        id_ex_reg_q <= '0;
-        ex_mem_reg_q <= '0;
-        mem_wb_reg_q <= '0;
+        if_id_reg_q.valid <= 0;
+        id_ex_reg_q.valid <= 0;
+        ex_mem_reg_q.valid <= 0;
+        mem_wb_reg_q.valid <= 0;
     end
     else begin
         if_id_reg_q <= if_id_reg_d;
@@ -276,6 +289,7 @@ always_comb begin
     if_id_reg_d.pc = current_pc_if;
     if_id_reg_d.instruction = instr_if;
     if_id_reg_d.predicted_pc = pc_predict_result_if.predicted_pc; // predicted pc from branch predictor
+    if_id_reg_d.valid = imem_req_ready_if;
 
     id_ex_reg_d.pc = if_id_reg_q.pc;
     id_ex_reg_d.pcplus4 = if_id_reg_q.pcplus4;
@@ -297,6 +311,7 @@ always_comb begin
     id_ex_reg_d.pc_sel = pc_sel_id;
     id_ex_reg_d.predicted_pc = if_id_reg_q.predicted_pc;
     id_ex_reg_d.funct3 = funct3_id;
+    id_ex_reg_d.valid = if_id_reg_q.valid;
 
     ex_mem_reg_d.pcplus4 = id_ex_reg_q.pcplus4;
     ex_mem_reg_d.alu_result = alu_result_ex;
@@ -308,6 +323,7 @@ always_comb begin
     ex_mem_reg_d.memsize = id_ex_reg_q.memsize;
     ex_mem_reg_d.memsign = id_ex_reg_q.memsign;
     ex_mem_reg_d.wb_sel = id_ex_reg_q.wb_sel;
+    ex_mem_reg_d.valid = id_ex_reg_q.valid;
 
     mem_wb_reg_d.pcplus4 = ex_mem_reg_q.pcplus4;
     mem_wb_reg_d.alu_result = ex_mem_reg_q.alu_result;
@@ -316,6 +332,7 @@ always_comb begin
     mem_wb_reg_d.rd = ex_mem_reg_q.rd;
     mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
     mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
+    mem_wb_reg_d.valid = ex_mem_reg_q.valid;
 end
 
 logic [31:0] cycle_counter;
