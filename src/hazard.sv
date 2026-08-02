@@ -33,6 +33,9 @@ always_comb begin
         else if(rs1_ex == rd_wb && reg_we_wb && rd_wb != 5'd0) begin
             rs1_forward_mux_sel = RS_FORWARD_WB;
         end
+        else begin
+            rs1_forward_mux_sel = RS_FORWARD_NONE;
+        end
     end
     else begin
         rs1_forward_mux_sel = RS_FORWARD_NONE;
@@ -44,6 +47,9 @@ always_comb begin
         end
         else if(rs2_ex == rd_wb && reg_we_wb && rd_wb != 5'd0) begin
             rs2_forward_mux_sel = RS_FORWARD_WB;
+        end
+        else begin
+            rs2_forward_mux_sel = RS_FORWARD_NONE;
         end
     end
     else begin
