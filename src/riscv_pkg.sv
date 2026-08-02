@@ -157,6 +157,8 @@ typedef struct packed {
     logic [4:0] rd;
     logic [31:0] imm;
 
+    funct3_t funct3;
+
     // control signals
     alu_src_a_sel_t alu_src_a_sel;
     alu_src_b_sel_t alu_src_b_sel;
@@ -211,6 +213,6 @@ typedef struct packed {
 typedef struct packed{
     logic predict_taken;
     logic [31:0] predicted_pc;
-} branch_predict_result_t;
+} pc_predict_result_t;
 
 endpackage

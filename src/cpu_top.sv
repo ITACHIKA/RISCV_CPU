@@ -13,6 +13,8 @@ assign clk = sysclk;
 logic [31:0] current_pc_if;
 logic [31:0] next_pc_if;
 logic [31:0] instr_if;
+logic [31:0] redirect_next_pc_ex;
+logic redirect_pc_request_ex;
 
 opcode_t opcode_id;
 funct3_t funct3_id;
@@ -43,8 +45,7 @@ logic eq_ex;
 logic less_signed_ex;
 logic less_unsigned_ex;
 
-logic take;
-
+logic take_ex;
 
 logic [31:0] mem_wdata;
 logic [31:0] dmem_output_raw;
@@ -58,7 +59,7 @@ id_ex_reg_t id_ex_reg_q, id_ex_reg_d;
 ex_mem_reg_t ex_mem_reg_q, ex_mem_reg_d;
 mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 
-branch_predict_result_t branch_predict_result_if;
+pc_predict_result_t pc_predict_result_if;
 
 comparator_ex comparator(
     // Inputs
@@ -73,13 +74,13 @@ comparator_ex comparator(
 
 branch_ex branch(
     // Inputs
-    .funct3(funct3_id),
+    .funct3(id_ex_reg_q.funct3),
     .eq(eq_ex),
     .less_signed(less_signed_ex),
     .less_unsigned(less_unsigned_ex),
 
     // Outputs
-    .take(take)
+    .take(take_ex)
 );
 
 branch_predict_if branch_predict(
@@ -89,7 +90,21 @@ branch_predict_if branch_predict(
     .pc            (current_pc_if),
 
     // Outputs
-    .branch_predict_result(branch_predict_result_if)
+    .branch_predict_result(pc_predict_result_if)
+);
+
+control_flow_resolver_ex control_flow_resolver (
+    // Inputs
+    .current_pc         (id_ex_reg_q.pc), // this pc must come from IF stage
+    .predicted_next_pc  (id_ex_reg_q.predicted_pc), // this predicted pc must come from IF stage
+    .branch_taken       (take_ex),
+    .alu_result         (alu_result_ex),
+    .imm                (id_ex_reg_q.imm),
+    .pc_sel             (id_ex_reg_q.pc_sel),
+
+    // Outputs
+    .redirect_pc_request(redirect_pc_request_ex),
+    .redirect_next_pc   (redirect_next_pc_ex)
 );
 
 pc_if pc(
@@ -263,6 +278,7 @@ always_comb begin
     id_ex_reg_d.wb_sel = wb_sel_id;
     id_ex_reg_d.pc_sel = pc_sel_id;
     id_ex_reg_d.predicted_pc = if_id_reg_q.predicted_pc;
+    id_ex_reg_d.funct3 = funct3_id;
 
     ex_mem_reg_d.pcplus4 = id_ex_reg_q.pcplus4;
     ex_mem_reg_d.alu_result = alu_result_ex;
@@ -326,20 +342,11 @@ always_comb begin
     pcplusimm = id_ex_reg_q.pc + id_ex_reg_q.imm;
 end
 
-// always_comb begin
-//     unique case(id_ex_reg_q.pc_sel)
-//         PC_NEXT: next_pc = current_pc + 4;
-//         PC_BRANCH: next_pc = take? (current_pc + imm):(current_pc+4);
-//         PC_JAL: next_pc = alu_result;
-//         PC_JALR: next_pc = alu_result & 32'hFFFF_FFFE;
-//         PC_TRAP: next_pc = 32'h0000_0000;
-//         default: next_pc = current_pc + 4;
-//     endcase
-// end
-
 always_comb begin
-    next_pc_if = branch_predict_result_if.predicted_pc; // currently it is static prediction of always not taken
-
+    next_pc_if = pc_predict_result_if.predicted_pc; // currently it is static prediction of always not taken
+    if(redirect_pc_request_ex) begin
+        next_pc_if = redirect_next_pc_ex;
+    end
 end
 
 endmodule
