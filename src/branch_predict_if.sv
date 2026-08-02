@@ -12,8 +12,14 @@ module branch_predict_if(
 
 always_comb begin
     // simple branch predictor: always predict not taken
-    branch_predict_result.predict_taken = 1'b0;
-    branch_predict_result.predicted_pc = pc + 4;
+    if(!reset_n) begin
+        branch_predict_result.predict_taken = 1'b0;
+        branch_predict_result.predicted_pc = 32'd0;
+    end
+    else begin
+        branch_predict_result.predict_taken = 1'b0;
+        branch_predict_result.predicted_pc = pc + 4;
+    end
 end
 
 endmodule
