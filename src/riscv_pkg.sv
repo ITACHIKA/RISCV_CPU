@@ -13,8 +13,7 @@ package riscv_pkg;
     typedef enum logic [2:0] {
         WB_ALU,
         WB_MEM,
-        WB_PC,
-        WB_CMP
+        WB_PC
     } wb_sel_t;
 
     typedef enum logic [2:0] {
@@ -134,4 +133,95 @@ package riscv_pkg;
     localparam funct7_t F7_SRA = 7'b0100000;
     localparam funct7_t F7_OR  = 7'b0000000;
     localparam funct7_t F7_AND = 7'b0000000;
+
+// define pipeline stage register packs
+
+typedef struct packed {
+    logic valid; // indicate if there is valid instruction to pass to next stage
+    // datapath signals
+    logic [31:0] pc;
+    logic [31:0] pcplus4;
+    logic [31:0] instruction;
+
+    logic [31:0] predicted_pc; // predicted pc from branch predictor
+} if_id_reg_t;
+
+typedef struct packed {
+    logic valid;
+    // datapath signals
+    logic [31:0] pc;
+    logic [31:0] pcplus4;
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+    logic [4:0] rd;
+    logic [31:0] imm;
+    logic [4:0] rs1;
+    logic [4:0] rs2;
+    logic uses_rs1;
+    logic uses_rs2;
+
+    funct3_t funct3;
+
+    // control signals
+    alu_src_a_sel_t alu_src_a_sel;
+    alu_src_b_sel_t alu_src_b_sel;
+    alu_op_t alu_op;
+
+    logic reg_we;
+    logic mem_re;
+    logic mem_we;
+    mem_size_t memsize;
+    mem_sign_t memsign;
+    wb_sel_t wb_sel;
+    pc_sel_t pc_sel;
+
+    // predicted pc from branch predictor
+    // have to be passed to EX stage
+    logic [31:0] predicted_pc;
+
+} id_ex_reg_t;
+
+typedef struct packed {
+    logic valid;
+    // datapath signals
+    logic [31:0] pcplus4;
+    logic [31:0] alu_result;
+    logic [31:0] rs2_data; // for store instruction
+    logic [4:0] rd;
+
+    // control signals
+    logic reg_we;
+    logic mem_re;
+    logic mem_we;
+    mem_size_t memsize;
+    mem_sign_t memsign;
+    wb_sel_t wb_sel;
+} ex_mem_reg_t;
+
+typedef struct packed {
+    logic valid;
+    // datapath signals
+    logic [31:0] pcplus4;
+    logic [31:0] alu_result;
+    logic [31:0] mem_data; // data read from memory
+    
+    logic [31:0] rs2_data; // for store instruction
+    logic [4:0] rd;
+
+    // control signals
+    logic reg_we;
+    wb_sel_t wb_sel;
+} mem_wb_reg_t;
+
+typedef struct packed{
+    logic predict_taken;
+    logic [31:0] predicted_pc;
+} pc_predict_result_t;
+
+typedef enum logic [1:0] {
+    RS_FORWARD_NONE,
+    RS_FORWARD_MEM,
+    RS_FORWARD_WB
+} rs_forward_mux_sel_t;
+
 endpackage

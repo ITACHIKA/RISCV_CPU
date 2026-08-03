@@ -6,6 +6,7 @@ logic clk;
 logic reset;
 
 riscv_cpu uut (
+    // Inputs
     .sysclk(clk),
     .reset(reset)
 );

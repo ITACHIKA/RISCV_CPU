@@ -1,12 +1,15 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module dmem(
+module dmem_mem(
+    // Inputs
     input logic clk,
     input logic wren,
-    //input logic rden, //not for single cycle cpu
+    input logic rden,
     input logic [31:0] addr,
     input logic [31:0] wdata,
     input logic [3:0] wstrb,
+
+    // Outputs
     output logic [31:0] rdata
 );
 

@@ -1,7 +1,10 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module decode(
+module decode_id(
+    // Inputs
     input logic [31:0] instruction,
+
+    // Outputs
     output opcode_t opcode,
     output imm_type_t imm_type,
     output funct3_t funct3,

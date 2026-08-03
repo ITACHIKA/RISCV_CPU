@@ -1,10 +1,14 @@
+// IMM Generator, ID stage
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 
-module imm_gen
+module imm_gen_id
 (
+    // Inputs
     input logic [31:0] instruction,
     input imm_type_t imm_type,
+
+    // Outputs
     output logic [31:0] imm_out
 );
 

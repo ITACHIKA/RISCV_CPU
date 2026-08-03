@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
-module control(
+module control_id(
+    // Inputs
     input logic [4:0] rs1,
     input logic [4:0] rs2,
     input logic [4:0] rd,
@@ -8,6 +9,7 @@ module control(
     input funct7_t funct7,
     input opcode_t opcode,
 
+    // Outputs
     output logic    reg_we,
     output logic    mem_re,
     output logic    mem_we,
@@ -17,6 +19,8 @@ module control(
     output logic    illegal_instr,
     output alu_src_a_sel_t    alu_src_a_sel,
     output alu_src_b_sel_t    alu_src_b_sel,
+    output logic    uses_rs1,
+    output logic    uses_rs2,
     
     output mem_size_t memsize,
     output mem_sign_t memsign
@@ -38,6 +42,8 @@ always_comb begin
     illegal_instr = 1'b0;
     alu_src_a_sel = ALU_SRC_A_RS1;
     alu_src_b_sel = ALU_SRC_B_RS2;
+    uses_rs1 = 1'b0;
+    uses_rs2 = 1'b0;
     unique case(opcode)
         OPCODE_OP_IMM: begin
             reg_we = 1'b1;
@@ -47,6 +53,8 @@ always_comb begin
             pc_sel = PC_NEXT;
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b0;
             unique case(funct3)
                 F3_ADDI: alu_op = ALU_ADD;
                 F3_SLTI: alu_op = ALU_SLT;
@@ -86,6 +94,8 @@ always_comb begin
             pc_sel = PC_NEXT;
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_RS2;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b1;
             unique case(funct3)
                 F3_ADD: begin // also F3_SUB
                     if(funct7 == F7_ADD)
@@ -170,9 +180,13 @@ always_comb begin
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_COPY_B;
+            uses_rs1 = 1'b0;
+            uses_rs2 = 1'b0;
         end
         OPCODE_BRANCH: begin
             pc_sel = PC_BRANCH;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b1;
         end
         OPCODE_AUIPC: begin
             reg_we = 1'b1;
@@ -183,6 +197,8 @@ always_comb begin
             alu_src_a_sel = ALU_SRC_A_PC;
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_ADD;
+            uses_rs1 = 1'b0;
+            uses_rs2 = 1'b0;
         end
         OPCODE_JAL: begin
             reg_we = 1'b1;
@@ -192,7 +208,9 @@ always_comb begin
             pc_sel = PC_JAL;
             alu_src_a_sel = ALU_SRC_A_PC;
             alu_src_b_sel = ALU_SRC_B_IMM;
-            alu_op = ALU_ADD;            
+            alu_op = ALU_ADD;
+            uses_rs1 = 1'b0;
+            uses_rs2 = 1'b0;
         end
         OPCODE_JALR: begin
             reg_we = 1'b1;
@@ -203,6 +221,8 @@ always_comb begin
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_ADD;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b0;
         end
         OPCODE_LOAD: begin
             reg_we = 1'b1;
@@ -213,7 +233,9 @@ always_comb begin
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_ADD;
-            debug = 1'b1;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b0;
+            //debug = 1'b1;
             unique case(funct3)
                 F3_LB: begin
                     memsize = MEM_BYTE;
@@ -251,6 +273,8 @@ always_comb begin
             alu_src_a_sel = ALU_SRC_A_RS1;
             alu_src_b_sel = ALU_SRC_B_IMM;
             alu_op = ALU_ADD;
+            uses_rs1 = 1'b1;
+            uses_rs2 = 1'b1;
             unique case(funct3)
                 F3_SB: begin
                     memsize = MEM_BYTE;
