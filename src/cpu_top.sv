@@ -112,6 +112,8 @@ control_flow_resolver_ex control_flow_resolver (
     .imm                (id_ex_reg_q.imm),
     .pc_sel             (id_ex_reg_q.pc_sel),
 
+    .valid_ex           (id_ex_reg_q.valid),
+
     // Outputs
     .redirect_pc_request(redirect_pc_request_ex),
     .redirect_next_pc   (redirect_next_pc_ex)

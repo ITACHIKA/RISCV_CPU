@@ -37,6 +37,8 @@ end
 // we need a forwarding machanism to forward data from WB stage to ID decode
 // without forwarding, WB updates register at rising edge, but ID also captures reg at rising edge
 // So ID will capture old value of register
+
+// not using the method of write reg at falling edge and read at rising edge, because it worsens design timing
 always_comb begin
     if(rs1_addr == 5'd0) begin
         rs1_data = 32'd0;

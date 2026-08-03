@@ -21,3 +21,6 @@ addi x7, x0, 7
 addi x8, x0, 0
 addi x9, x0, 0
 add  x10, x7, x0      # x10 should be 7
+
+fail:
+    beq x0, x0, fail
