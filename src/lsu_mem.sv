@@ -30,7 +30,7 @@ always_comb begin
             load_misalign_except = (!wren) && (|addr[1:0]);
             store_misalign_except = wren && (|addr[1:0]);
         end
-        default: begin //byte always aligned
+        default: begin //MEM_BYTE always aligned
             load_misalign_except = 1'b0;
             store_misalign_except = 1'b0;
         end
