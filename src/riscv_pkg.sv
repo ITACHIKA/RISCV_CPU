@@ -13,8 +13,7 @@ package riscv_pkg;
     typedef enum logic [2:0] {
         WB_ALU,
         WB_MEM,
-        WB_PC,
-        WB_CMP
+        WB_PC
     } wb_sel_t;
 
     typedef enum logic [2:0] {

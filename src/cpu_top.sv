@@ -68,6 +68,9 @@ pc_predict_result_t pc_predict_result_if;
 
 rs_forward_mux_sel_t rs1_forward_mux_sel, rs2_forward_mux_sel;
 
+// forwarding mux for RS1 and RS2
+logic [31:0] alu_a_forward_result_ex, alu_b_forward_result_ex;
+
 comparator_ex comparator(
     // Inputs
     .a(alu_a_ex),
@@ -271,10 +274,10 @@ assign exception = illegal_instr || load_misalign_except || store_misalign_excep
 //pipeline registers
 always_ff @(posedge clk) begin
     if(!reset_n) begin
-        if_id_reg_q.valid <= 0;
-        id_ex_reg_q.valid <= 0;
-        ex_mem_reg_q.valid <= 0;
-        mem_wb_reg_q.valid <= 0;
+        if_id_reg_q <= '0;
+        id_ex_reg_q <= '0;
+        ex_mem_reg_q <= '0;
+        mem_wb_reg_q <= '0;
     end
     else begin
         if_id_reg_q <= if_id_reg_d;
@@ -315,7 +318,8 @@ always_comb begin
 
     ex_mem_reg_d.pcplus4 = id_ex_reg_q.pcplus4;
     ex_mem_reg_d.alu_result = alu_result_ex;
-    ex_mem_reg_d.rs2_data = id_ex_reg_q.rs2_data;
+    // ex_mem_reg_d.rs2_data = id_ex_reg_q.rs2_data;
+    ex_mem_reg_d.rs2_data = alu_b_forward_result_ex; // forward rs2 data from MEM stage for store instruction
     ex_mem_reg_d.rd = id_ex_reg_q.rd;
     ex_mem_reg_d.reg_we = id_ex_reg_q.reg_we;
     ex_mem_reg_d.mem_re = id_ex_reg_q.mem_re;
@@ -345,8 +349,18 @@ always_ff @(posedge clk) begin
     end
 end
 
-// forwarding mux for RS1 and RS2
-logic [31:0] alu_a_forward_result_ex, alu_b_forward_result_ex;
+// need extra mux to choose forwarding from PC+4 or ALU result from MEM stage in the case of instruction uses RD following JAL/R
+logic [31:0] mem_forward_result;
+
+always_comb begin
+    unique case(ex_mem_reg_q.wb_sel)
+        WB_ALU: mem_forward_result = ex_mem_reg_q.alu_result;
+        // WB_MEM: mem_forward_result = ex_mem_reg_q.mem_data; This is a load-use case
+        WB_MEM: mem_forward_result = 32'd0; // This is a load-use case, we cannot forward the data from MEM stage
+        WB_PC: mem_forward_result = ex_mem_reg_q.pcplus4; //for JAL/R
+        default: mem_forward_result = 32'd0;
+    endcase
+end
 
 always_comb begin
     unique case(rs1_forward_mux_sel)
@@ -386,8 +400,7 @@ always_comb begin
     unique case(mem_wb_reg_q.wb_sel)
         WB_ALU: wb_data = mem_wb_reg_q.alu_result;
         WB_MEM: wb_data = mem_wb_reg_q.mem_data;
-        WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL
-        WB_CMP: wb_data = {31'd0, eq_ex};
+        WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL/R
         default: wb_data = 32'd0;
     endcase
 end
