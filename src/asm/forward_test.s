@@ -22,5 +22,14 @@ addi x8, x0, 0
 addi x9, x0, 0
 add  x10, x7, x0      # x10 should be 7
 
+# load-use case
+
+lw   x11, 0(x5)        # x11 should be 55
+addi x12, x11, 1       # x12 should be 56
+beq  x0, x0, ok
+
 fail:
     beq x0, x0, fail
+
+ok:
+    beq x0, x0, ok
