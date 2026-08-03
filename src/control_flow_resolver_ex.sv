@@ -12,6 +12,8 @@ module control_flow_resolver_ex(
     input logic [31:0] imm,
     input pc_sel_t pc_sel,
 
+    input logic valid_ex,
+
     // Outputs
     output logic redirect_pc_request,
     output logic [31:0] redirect_next_pc
@@ -44,7 +46,7 @@ always_comb begin
         end
     endcase
 
-    redirect_pc_request = (redirect_next_pc != predicted_next_pc);
+    redirect_pc_request = valid_ex && (redirect_next_pc != predicted_next_pc);
 end
 
 endmodule
