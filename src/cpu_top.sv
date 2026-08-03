@@ -39,6 +39,7 @@ alu_src_a_sel_t alu_src_a_sel_id;
 alu_src_b_sel_t alu_src_b_sel_id;
 mem_size_t memsize_id;
 mem_sign_t memsign_id;
+logic uses_rs1_id, uses_rs2_id; // indicate if the instruction actually uses rs1 and rs2
 
 logic [31:0] rs1_data_id, rs2_data_id;
 logic [31:0] imm_id;
@@ -56,8 +57,8 @@ logic [31:0] mem_wdata;
 logic [31:0] dmem_output_raw;
 logic [31:0] dmem_output;
 logic [3:0] wstrb;
-logic load_misalign_except;
-logic store_misalign_except;
+logic load_misalign_except_mem;
+logic store_misalign_except_mem;
 
 if_id_reg_t if_id_reg_q, if_id_reg_d;
 id_ex_reg_t id_ex_reg_q, id_ex_reg_d;
@@ -70,6 +71,8 @@ rs_forward_mux_sel_t rs1_forward_mux_sel, rs2_forward_mux_sel;
 
 // forwarding mux for RS1 and RS2
 logic [31:0] alu_a_forward_result_ex, alu_b_forward_result_ex;
+
+logic load_use_stall_if;
 
 comparator_ex comparator(
     // Inputs
@@ -178,7 +181,9 @@ control_id control(
     .alu_src_a_sel(alu_src_a_sel_id),
     .alu_src_b_sel(alu_src_b_sel_id),
     .memsize(memsize_id),
-    .memsign(memsign_id)
+    .memsign(memsign_id),
+    .uses_rs1(uses_rs1_id),
+    .uses_rs2(uses_rs2_id)
 );
 
 registers_id_wb registers(
@@ -189,7 +194,7 @@ registers_id_wb registers(
     .rs2_addr(rs2_id),
     .rd_addr(mem_wb_reg_q.rd), // have to use rd from wb stage, because the rd in decode stage may be overwritten by next instruction
     .rd_data(wb_data), //rd register data, not read data
-    .rd_we(mem_wb_reg_q.reg_we),
+    .rd_we(mem_wb_reg_q.reg_we && mem_wb_reg_q.valid), // write enable for rd register, only write when instruction is valid
 
     // Outputs
     .rs1_data(rs1_data_id),
@@ -220,7 +225,8 @@ alu_ex alu(
 dmem_mem dmem(
     // Inputs
     .clk(clk),
-    .wren(ex_mem_reg_q.mem_we),
+    .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
+    .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
     .addr(ex_mem_reg_q.alu_result),
     .wdata(mem_wdata),
     .wstrb(wstrb),
@@ -231,7 +237,8 @@ dmem_mem dmem(
 
 lsu_mem lsu(
     // Inputs
-    .wren(ex_mem_reg_q.mem_we),
+    .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
+    .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
     .mem_data(dmem_output_raw),
@@ -242,27 +249,41 @@ lsu_mem lsu(
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
     .load_data(dmem_output),
-    .load_misalign_except(load_misalign_except),
-    .store_misalign_except(store_misalign_except)
+    .load_misalign_except(load_misalign_except_mem),
+    .store_misalign_except(store_misalign_except_mem)
 );
 
 hazard hazard (
     // Inputs
+    .rs1_id             (rs1_id),
+    .rs2_id             (rs2_id),
     .rs1_ex             (id_ex_reg_q.rs1),
     .rs2_ex             (id_ex_reg_q.rs2),
+    .rd_ex              (id_ex_reg_q.rd), // for load-use hazard detection, need rd in EX stage   
     .rd_mem             (ex_mem_reg_q.rd),
     .rd_wb              (mem_wb_reg_q.rd),
     .reg_we_mem         (ex_mem_reg_q.reg_we),
     .reg_we_wb          (mem_wb_reg_q.reg_we),
+    .valid_id           (if_id_reg_q.valid),
     .valid_ex           (id_ex_reg_q.valid),
+    .valid_mem          (ex_mem_reg_q.valid),
+    .valid_wb           (mem_wb_reg_q.valid),
+    .mem_rden_ex        (id_ex_reg_q.mem_re), // for load-use hazard detection
+    .mem_rden_mem       (ex_mem_reg_q.mem_re), // indicate if there is a load instruction in MEM stage
+    .uses_rs1_id        (uses_rs1_id),
+    .uses_rs2_id        (uses_rs2_id), // if rs1 and rs2 are actually being used in ID stage
+    .uses_rs1_ex        (id_ex_reg_q.uses_rs1),
+    .uses_rs2_ex        (id_ex_reg_q.uses_rs2), // used for general forwarding, not load-store detection
 
     // Outputs
     .rs1_forward_mux_sel(rs1_forward_mux_sel),
-    .rs2_forward_mux_sel(rs2_forward_mux_sel)
+    .rs2_forward_mux_sel(rs2_forward_mux_sel),
+
+    .load_use_stall_if  (load_use_stall_if)
 );
 
 logic exception;
-assign exception = illegal_instr || load_misalign_except || store_misalign_except;
+assign exception = illegal_instr || load_misalign_except_mem || store_misalign_except_mem;
 
 // always_comb begin
 //     if(reset_n && illegal_instr)
@@ -282,10 +303,24 @@ always_ff @(posedge clk) begin
         mem_wb_reg_q <= '0;
     end
     else begin
-        if_id_reg_q <= if_id_reg_d;
-        id_ex_reg_q <= id_ex_reg_d;
-        ex_mem_reg_q <= ex_mem_reg_d;
-        mem_wb_reg_q <= mem_wb_reg_d;
+        if (redirect_pc_request_ex) begin
+            if_id_reg_q <= '0; // flush IF/ID register
+            id_ex_reg_q <= '0; // flush ID/EX register
+            ex_mem_reg_q <= ex_mem_reg_d;
+            mem_wb_reg_q <= mem_wb_reg_d; // MEM and WB stage proceed normally
+        end
+        else if(load_use_stall_if) begin
+            if_id_reg_q <= if_id_reg_q; // stall IF/ID register
+            id_ex_reg_q <= '0; // flush ID/EX register
+            ex_mem_reg_q <= ex_mem_reg_d;
+            mem_wb_reg_q <= mem_wb_reg_d; // MEM/WB proceed normally
+        end
+        else begin
+            if_id_reg_q <= if_id_reg_d;
+            id_ex_reg_q <= id_ex_reg_d;
+            ex_mem_reg_q <= ex_mem_reg_d;
+            mem_wb_reg_q <= mem_wb_reg_d;
+        end
     end
 end
 
@@ -304,6 +339,8 @@ always_comb begin
     id_ex_reg_d.imm = imm_id;
     id_ex_reg_d.rs1 = rs1_id;
     id_ex_reg_d.rs2 = rs2_id;
+    id_ex_reg_d.uses_rs1 = uses_rs1_id;
+    id_ex_reg_d.uses_rs2 = uses_rs2_id;
     id_ex_reg_d.alu_src_a_sel = alu_src_a_sel_id;
     id_ex_reg_d.alu_src_b_sel = alu_src_b_sel_id;
     id_ex_reg_d.alu_op = alu_op_id;
@@ -407,8 +444,12 @@ always_comb begin
     endcase
 end
 
+// redirect have higher priority over load-use stall
 always_comb begin
     next_pc_if = pc_predict_result_if.predicted_pc; // currently it is static prediction of always not taken
+    if(load_use_stall_if) begin
+        next_pc_if = current_pc_if; // stall IF stage, keep the same PC
+    end
     if(redirect_pc_request_ex) begin
         next_pc_if = redirect_next_pc_ex;
     end
