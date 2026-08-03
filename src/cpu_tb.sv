@@ -23,7 +23,7 @@ end
 initial begin
     @(posedge reset);
 
-    repeat (40) @(posedge clk);
+    repeat (300) @(posedge clk);
 
     $finish;
 end
