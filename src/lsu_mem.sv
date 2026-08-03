@@ -3,7 +3,7 @@ import riscv_pkg::*;
 module lsu_mem( //load store unit
     // Inputs
     input logic wren,
-    //input logic wren, //not for single cycle cpu
+    input logic rden,
     input logic [31:0] addr,
     input logic [31:0] store_data, //from rs2
     input logic [31:0] mem_data, //from mem raw data
@@ -21,13 +21,13 @@ module lsu_mem( //load store unit
 always_comb begin
     load_misalign_except = 1'b0;
     store_misalign_except = 1'b0;
-    case(memsize)
+    unique case(memsize)
         MEM_HALF: begin
-            load_misalign_except = (!wren) && (addr[0]);
+            load_misalign_except = rden && (addr[0]);
             store_misalign_except = wren && (addr[0]);
         end
         MEM_WORD: begin
-            load_misalign_except = (!wren) && (|addr[1:0]);
+            load_misalign_except = rden && (|addr[1:0]);
             store_misalign_except = wren && (|addr[1:0]);
         end
         default: begin //MEM_BYTE always aligned
@@ -67,7 +67,7 @@ always_comb begin
                     end
                 endcase
             end
-            else begin
+            else if (rden) begin
                     case(addr[1:0])
                     2'b00: begin
                         load_data = (memsign == MEM_SIGNED)? {{24{mem_data[7]}},mem_data[7:0]}: {24'b0,mem_data[7:0]};
@@ -104,7 +104,7 @@ always_comb begin
                     end
                 endcase
             end
-            else begin
+            else if (rden) begin
                     case(addr[1])
                     1'b0: begin
                         load_data = (memsign == MEM_SIGNED)? {{16{mem_data[15]}},mem_data[15:0]}: {16'b0,mem_data[15:0]};
@@ -123,7 +123,7 @@ always_comb begin
                 wstrb = 4'b1111;
                 mem_wdata = store_data;
             end
-            else begin
+            else if (rden) begin
                 load_data = mem_data;
             end
         end
