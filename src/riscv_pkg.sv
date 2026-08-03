@@ -134,7 +134,7 @@ package riscv_pkg;
     localparam funct7_t F7_OR  = 7'b0000000;
     localparam funct7_t F7_AND = 7'b0000000;
 
-// define pipeline stage boundarie register packs
+// define pipeline stage register packs
 
 typedef struct packed {
     logic valid; // indicate if there is valid instruction to pass to next stage
@@ -157,6 +157,8 @@ typedef struct packed {
     logic [31:0] imm;
     logic [4:0] rs1;
     logic [4:0] rs2;
+    logic uses_rs1;
+    logic uses_rs2;
 
     funct3_t funct3;
 
