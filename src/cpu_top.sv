@@ -356,7 +356,7 @@ always_comb begin
     unique case(ex_mem_reg_q.wb_sel)
         WB_ALU: mem_forward_result = ex_mem_reg_q.alu_result;
         // WB_MEM: mem_forward_result = ex_mem_reg_q.mem_data; This is a load-use case
-        WB_MEM: mem_forward_result = 32'd0; // This is a load-use case, we cannot forward the data from MEM stage
+        WB_MEM: mem_forward_result = 32'd0; // This is a load-use case, we cannot forward the data from MEM stage since it's not ready until end of MEM stage
         WB_PC: mem_forward_result = ex_mem_reg_q.pcplus4; //for JAL/R
         default: mem_forward_result = 32'd0;
     endcase
@@ -365,7 +365,7 @@ end
 always_comb begin
     unique case(rs1_forward_mux_sel)
         RS_FORWARD_NONE: alu_a_forward_result_ex = id_ex_reg_q.rs1_data;
-        RS_FORWARD_MEM: alu_a_forward_result_ex = ex_mem_reg_q.alu_result;
+        RS_FORWARD_MEM: alu_a_forward_result_ex = mem_forward_result;
         RS_FORWARD_WB: alu_a_forward_result_ex = wb_data;
         default: alu_a_forward_result_ex = 32'd0;
     endcase
@@ -374,7 +374,7 @@ end
 always_comb begin
     unique case(rs2_forward_mux_sel)
         RS_FORWARD_NONE: alu_b_forward_result_ex = id_ex_reg_q.rs2_data;
-        RS_FORWARD_MEM: alu_b_forward_result_ex = ex_mem_reg_q.alu_result;
+        RS_FORWARD_MEM: alu_b_forward_result_ex = mem_forward_result;
         RS_FORWARD_WB: alu_b_forward_result_ex = wb_data;
         default: alu_b_forward_result_ex = 32'd0;
     endcase
