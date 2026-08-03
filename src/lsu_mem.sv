@@ -40,6 +40,7 @@ end
 always_comb begin
     wstrb = 4'b0000;
     mem_wdata = 32'd0;
+    load_data = 32'd0;
     unique case(memsize)
         MEM_BYTE: begin
             if(wren) begin
