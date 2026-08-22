@@ -61,6 +61,8 @@ logic less_unsigned_ex;
 
 logic take_ex;
 
+logic dmem_resolved_wren;
+logic dmem_resolved_rden;
 logic [31:0] mem_wdata;
 logic [31:0] dmem_output_raw;
 logic [31:0] dmem_output;
@@ -242,8 +244,8 @@ alu_ex alu(
 dmem_mem dmem(
     // Inputs
     .clk(clk),
-    .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
-    .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
+    .wren(dmem_resolved_wren),
+    .rden(dmem_resolved_rden),
     .addr(ex_mem_reg_q.alu_result),
     .wdata(mem_wdata),
     .wstrb(wstrb),
@@ -254,8 +256,8 @@ dmem_mem dmem(
 
 lsu_mem lsu_mem(
     // Inputs
-    .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
-    .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
+    .wren(dmem_resolved_wren),
+    .rden(dmem_resolved_rden),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
     // .mem_data(dmem_output_raw),
@@ -276,10 +278,21 @@ lsu_wb lsu_wb(
     .mem_addr(mem_wb_reg_q.alu_result),
     .memsize(mem_wb_reg_q.memsize),
     .memsign(mem_wb_reg_q.memsign),
-    .rden(mem_wb_reg_q.mem_rden && mem_wb_reg_q.valid),
+    .rden(mem_wb_reg_q.dmem_resolved_rden && mem_wb_reg_q.valid),
 
     // Outputs
     .load_data(dmem_output)
+);
+
+address_resolver_mem address_resolver_mem (
+    // Inputs
+    .addr     (ex_mem_reg_q.alu_result),
+    .mmio_device_wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
+    .mmio_device_rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
+
+    // Outputs
+    .dmem_resolved_wren(dmem_resolved_wren),
+    .dmem_resolved_rden(dmem_resolved_rden)
 );
 
 hazard hazard (
@@ -408,7 +421,8 @@ always_comb begin
     mem_wb_reg_d.rd = ex_mem_reg_q.rd;
     mem_wb_reg_d.memsize = ex_mem_reg_q.memsize;
     mem_wb_reg_d.memsign = ex_mem_reg_q.memsign;
-    mem_wb_reg_d.mem_rden = ex_mem_reg_q.mem_re;
+    // mem_wb_reg_d.mem_rden = ex_mem_reg_q.mem_re;
+    mem_wb_reg_d.dmem_resolved_rden = dmem_resolved_rden; // resolved rden signal that indicate this instr reads from dmem specifically
     mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
     mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
     mem_wb_reg_d.valid = ex_mem_reg_q.valid;

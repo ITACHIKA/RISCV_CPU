@@ -212,7 +212,7 @@ typedef struct packed {
 
     mem_size_t memsize;
     mem_sign_t memsign;
-    logic mem_rden;
+    logic dmem_resolved_rden;
 
     // control signals
     logic reg_we;

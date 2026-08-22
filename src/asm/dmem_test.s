@@ -10,8 +10,9 @@ _start:
     addi x31, x0, 0
     addi x29, x0, 0
 
-    # Use an aligned data-memory region starting at byte address 128.
-    addi x20, x0, 128
+    # Use the address range decoded by address_resolver_mem.
+    # DMEM is mapped at 0x10000000-0x100003ff.
+    lui  x20, 0x10000           # x20 = 0x10000000
 
     # ------------------------------------------------------------------
     # 1. Full-word store and synchronous load.
