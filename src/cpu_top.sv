@@ -252,22 +252,34 @@ dmem_mem dmem(
     .rdata(dmem_output_raw)
 );
 
-lsu_mem lsu(
+lsu_mem lsu_mem(
     // Inputs
     .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
     .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
-    .mem_data(dmem_output_raw),
+    // .mem_data(dmem_output_raw),
     .memsize(ex_mem_reg_q.memsize),
-    .memsign(ex_mem_reg_q.memsign),
+    // .memsign(ex_mem_reg_q.memsign),
 
     // Outputs
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
-    .load_data(dmem_output),
+    // .load_data(dmem_output),
     .load_misalign_except(load_misalign_except_mem),
     .store_misalign_except(store_misalign_except_mem)
+);
+
+lsu_wb lsu_wb(
+    // Inputs
+    .mem_raw_data(dmem_output_raw),
+    .mem_addr(mem_wb_reg_q.alu_result),
+    .memsize(mem_wb_reg_q.memsize),
+    .memsign(mem_wb_reg_q.memsign),
+    .rden(mem_wb_reg_q.mem_rden && mem_wb_reg_q.valid),
+
+    // Outputs
+    .load_data(dmem_output)
 );
 
 hazard hazard (
@@ -391,9 +403,12 @@ always_comb begin
 
     mem_wb_reg_d.pcplus4 = ex_mem_reg_q.pcplus4;
     mem_wb_reg_d.alu_result = ex_mem_reg_q.alu_result;
-    mem_wb_reg_d.mem_data = dmem_output;
+    // mem_wb_reg_d.mem_data = dmem_output; // no longer needed since dmem now returns data in WB stage rather than MEM stage
     mem_wb_reg_d.rs2_data = ex_mem_reg_q.rs2_data;
     mem_wb_reg_d.rd = ex_mem_reg_q.rd;
+    mem_wb_reg_d.memsize = ex_mem_reg_q.memsize;
+    mem_wb_reg_d.memsign = ex_mem_reg_q.memsign;
+    mem_wb_reg_d.mem_rden = ex_mem_reg_q.mem_re;
     mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
     mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
     mem_wb_reg_d.valid = ex_mem_reg_q.valid;
@@ -459,7 +474,7 @@ end
 always_comb begin
     unique case(mem_wb_reg_q.wb_sel)
         WB_ALU: wb_data = mem_wb_reg_q.alu_result;
-        WB_MEM: wb_data = mem_wb_reg_q.mem_data;
+        WB_MEM: wb_data = dmem_output; // now dmem output is processed by lsu_wb and available in WB stage
         WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL/R
         default: wb_data = 32'd0;
     endcase
