@@ -13,7 +13,7 @@ module dmem_mem(
     output logic [31:0] rdata
 );
 
-logic [31:0] data_ram [0:255]='{default:32'd0};;
+logic [31:0] data_ram [0:255]='{default:32'd0};
 
 always_ff @(posedge clk) begin
     if(wren) begin
@@ -24,6 +24,12 @@ always_ff @(posedge clk) begin
     end
 end
 
-assign rdata = data_ram[addr[31:2]];
+// assign rdata = data_ram[addr[31:2]];
+
+always_ff @(posedge clk) begin
+    if(rden) begin
+        rdata <= data_ram[addr[31:2]];
+    end
+end
 
 endmodule
