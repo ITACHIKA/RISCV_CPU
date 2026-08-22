@@ -203,10 +203,16 @@ typedef struct packed {
     // datapath signals
     logic [31:0] pcplus4;
     logic [31:0] alu_result;
-    logic [31:0] mem_data; // data read from memory
+    // logic [31:0] mem_data; // data read from memory
+    // this is not needed since dmem now has 1 cycle read latency and data is available in WB stage
+    // no need to pass it from MEM stage to WB stage
     
     logic [31:0] rs2_data; // for store instruction
     logic [4:0] rd;
+
+    mem_size_t memsize;
+    mem_sign_t memsign;
+    logic mem_rden;
 
     // control signals
     logic reg_we;

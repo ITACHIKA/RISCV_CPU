@@ -11,6 +11,7 @@ logic clk;
 assign reset_n = ~reset;
 assign clk = sysclk;
 logic [31:0] current_pc_if;
+logic [31:0] current_pc_imem_if; // this is the pc that is being processed in imem, which is 1 cycle behind current_pc_if  
 logic [31:0] next_pc_if;
 logic [31:0] instr_if;
 logic [31:0] redirect_next_pc_ex;
@@ -20,6 +21,13 @@ logic imem_req_valid_if;
 logic imem_resp_ready_if;
 logic imem_req_ready_if;
 logic imem_resp_valid_if;
+logic imem_req_fire_if;
+logic imem_resp_fire_if;
+
+logic pc_update_enable_if;
+
+assign imem_req_fire_if = imem_req_valid_if && imem_req_ready_if; // request is valid and imem is ready to accept
+assign imem_resp_fire_if = imem_resp_valid_if && imem_resp_ready_if; // response is valid and CPU is ready to accept
 
 opcode_t opcode_id;
 funct3_t funct3_id;
@@ -60,12 +68,15 @@ logic [3:0] wstrb;
 logic load_misalign_except_mem;
 logic store_misalign_except_mem;
 
+//logic imem_rden_if;
+
 if_id_reg_t if_id_reg_q, if_id_reg_d;
 id_ex_reg_t id_ex_reg_q, id_ex_reg_d;
 ex_mem_reg_t ex_mem_reg_q, ex_mem_reg_d;
 mem_wb_reg_t mem_wb_reg_q, mem_wb_reg_d;
 
 pc_predict_result_t pc_predict_result_if;
+pc_predict_result_t pc_predict_result_imem_if; // delayed pc_predict_result to match the delay of current_pc_imem_if
 
 rs_forward_mux_sel_t rs1_forward_mux_sel, rs2_forward_mux_sel;
 
@@ -96,11 +107,12 @@ branch_ex branch(
     .take(take_ex)
 );
 
+// calculates predicted next pc in same cycle
 branch_predict_if branch_predict(
     // Inputs
     .clk           (clk),
     .reset_n       (reset_n),
-    .pc            (current_pc_if),
+    .current_pc    (current_pc_if),
 
     // Outputs
     .branch_predict_result(pc_predict_result_if)
@@ -127,25 +139,30 @@ pc_if pc(
     .clk(clk),
     .reset_n(reset_n),
     .next_pc(next_pc_if),
+    .pc_update_enable(pc_update_enable_if),
 
     // Outputs
     .current_pc(current_pc_if)
 );
 
-assign imem_req_valid_if = 1'b1; // for a combinational imem, always valid request and ready for response
-assign imem_resp_ready_if = 1'b1;
-
 imem_if imem(
     // Inputs
+    .clk(clk),
+    .reset_n(reset_n),
     .addr(current_pc_if),
     .req_valid(imem_req_valid_if),
     .resp_ready(imem_resp_ready_if),
+    .flush(redirect_pc_request_ex),
+    //.rden(imem_rden_if),
 
     // Outputs
     .instruction(instr_if),
     .req_ready(imem_req_ready_if),
     .resp_valid(imem_resp_valid_if)
 );
+
+assign imem_req_valid_if = !load_use_stall_if && !redirect_pc_request_ex; // only send request when not stalled
+assign imem_resp_ready_if = !load_use_stall_if && !redirect_pc_request_ex;
 
 decode_id decode(
     // Inputs
@@ -235,22 +252,34 @@ dmem_mem dmem(
     .rdata(dmem_output_raw)
 );
 
-lsu_mem lsu(
+lsu_mem lsu_mem(
     // Inputs
     .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
     .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
-    .mem_data(dmem_output_raw),
+    // .mem_data(dmem_output_raw),
     .memsize(ex_mem_reg_q.memsize),
-    .memsign(ex_mem_reg_q.memsign),
+    // .memsign(ex_mem_reg_q.memsign),
 
     // Outputs
     .wstrb(wstrb),
     .mem_wdata(mem_wdata),
-    .load_data(dmem_output),
+    // .load_data(dmem_output),
     .load_misalign_except(load_misalign_except_mem),
     .store_misalign_except(store_misalign_except_mem)
+);
+
+lsu_wb lsu_wb(
+    // Inputs
+    .mem_raw_data(dmem_output_raw),
+    .mem_addr(mem_wb_reg_q.alu_result),
+    .memsize(mem_wb_reg_q.memsize),
+    .memsign(mem_wb_reg_q.memsign),
+    .rden(mem_wb_reg_q.mem_rden && mem_wb_reg_q.valid),
+
+    // Outputs
+    .load_data(dmem_output)
 );
 
 hazard hazard (
@@ -325,11 +354,15 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
-    if_id_reg_d.pcplus4 = current_pc_if + 4;
-    if_id_reg_d.pc = current_pc_if;
+    if_id_reg_d.pcplus4 = current_pc_imem_if + 4;
+    //if_id_reg_d.pc = current_pc_if;
+    if_id_reg_d.pc = current_pc_imem_if; 
+    // use the pc that is being processed in imem
+    // so pc and actual instr is synchronized
     if_id_reg_d.instruction = instr_if;
-    if_id_reg_d.predicted_pc = pc_predict_result_if.predicted_pc; // predicted pc from branch predictor
-    if_id_reg_d.valid = imem_req_ready_if;
+    if_id_reg_d.predicted_pc = pc_predict_result_imem_if.predicted_pc; // predicted pc from branch predictor
+    // if_id_reg_d.valid = imem_req_ready_if;
+    if_id_reg_d.valid = imem_resp_fire_if; // valid when imem response is valid and CPU is ready to accept
 
     id_ex_reg_d.pc = if_id_reg_q.pc;
     id_ex_reg_d.pcplus4 = if_id_reg_q.pcplus4;
@@ -370,9 +403,12 @@ always_comb begin
 
     mem_wb_reg_d.pcplus4 = ex_mem_reg_q.pcplus4;
     mem_wb_reg_d.alu_result = ex_mem_reg_q.alu_result;
-    mem_wb_reg_d.mem_data = dmem_output;
+    // mem_wb_reg_d.mem_data = dmem_output; // no longer needed since dmem now returns data in WB stage rather than MEM stage
     mem_wb_reg_d.rs2_data = ex_mem_reg_q.rs2_data;
     mem_wb_reg_d.rd = ex_mem_reg_q.rd;
+    mem_wb_reg_d.memsize = ex_mem_reg_q.memsize;
+    mem_wb_reg_d.memsign = ex_mem_reg_q.memsign;
+    mem_wb_reg_d.mem_rden = ex_mem_reg_q.mem_re;
     mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
     mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
     mem_wb_reg_d.valid = ex_mem_reg_q.valid;
@@ -438,7 +474,7 @@ end
 always_comb begin
     unique case(mem_wb_reg_q.wb_sel)
         WB_ALU: wb_data = mem_wb_reg_q.alu_result;
-        WB_MEM: wb_data = mem_wb_reg_q.mem_data;
+        WB_MEM: wb_data = dmem_output; // now dmem output is processed by lsu_wb and available in WB stage
         WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL/R
         default: wb_data = 32'd0;
     endcase
@@ -447,12 +483,25 @@ end
 // redirect have higher priority over load-use stall
 always_comb begin
     next_pc_if = pc_predict_result_if.predicted_pc; // currently it is static prediction of always not taken
-    if(load_use_stall_if) begin
-        next_pc_if = current_pc_if; // stall IF stage, keep the same PC
-    end
     if(redirect_pc_request_ex) begin
         next_pc_if = redirect_next_pc_ex;
     end
 end
+
+always_ff @(posedge clk) begin
+    if(!reset_n) begin
+        current_pc_imem_if <= 32'd0;
+        pc_predict_result_imem_if <= '0;
+    end
+    else begin
+        if(imem_req_fire_if) begin
+            current_pc_imem_if <= current_pc_if; // update current_pc_imem to be 1 cycle behind current_pc_if
+            pc_predict_result_imem_if <= pc_predict_result_if; // update pc_predict_result_imem to be 1 cycle behind pc_predict_result_if
+        end
+    end
+end
+
+// update pc when imem accepts a request, or request pc redirect
+assign pc_update_enable_if = imem_req_fire_if || redirect_pc_request_ex;
 
 endmodule
