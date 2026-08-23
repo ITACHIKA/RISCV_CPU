@@ -112,7 +112,7 @@ control_flow_resolver_ex control_flow_resolver (
     .alu_result        (alu_result_ex),
     .imm               (id_ex_reg_q.imm),
     .pc_sel            (id_ex_reg_q.pc_sel),
-    .valid_ex             (id_ex_reg_q.valid),
+    .valid_ex          (id_ex_reg_q.valid),
 
     // Outputs
     .redirect_pc_request(redirect_pc_request_ex),
