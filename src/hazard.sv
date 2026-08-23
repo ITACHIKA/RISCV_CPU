@@ -15,6 +15,7 @@ module hazard(
     input logic [4:0] rd_wb,
     input logic reg_we_mem,
     input logic reg_we_wb,
+    input logic wb_forward_valid_wb, // for forwarding logic, only forward ALU and PC results, not MEM results
 
     input logic uses_rs1_id, // for load-use hazard detection
     input logic uses_rs2_id, // for load-use hazard detection
@@ -35,6 +36,38 @@ module hazard(
     output logic load_use_stall_if
 );
 
+logic mem_forward_valid;
+logic rs1_mem_match;
+logic rs2_mem_match;
+logic rs1_wb_match;
+logic rs2_wb_match;
+
+always_comb begin
+    mem_forward_valid =
+        valid_mem &&
+        reg_we_mem &&
+        !mem_rden_mem &&
+        (rd_mem != 5'd0);
+
+    rs1_mem_match =
+        mem_forward_valid &&
+        (rs1_ex == rd_mem);
+
+    rs2_mem_match =
+        mem_forward_valid &&
+        (rs2_ex == rd_mem);
+
+    rs1_wb_match =
+        wb_forward_valid_wb &&
+        (rd_wb != 5'd0) &&
+        (rs1_ex == rd_wb);
+
+    rs2_wb_match =
+        wb_forward_valid_wb &&
+        (rd_wb != 5'd0) &&
+        (rs2_ex == rd_wb);
+end
+
 always_comb begin
     rs1_forward_mux_sel = RS_FORWARD_NONE;
     rs2_forward_mux_sel = RS_FORWARD_NONE;
@@ -47,48 +80,30 @@ always_comb begin
     valid_ex && // valid instruction in ex
     mem_rden_ex && // load instruction in ex stage
     (rd_ex != 5'd0) &&
-    ((uses_rs1_id && (rs1_id == rd_ex)) || (uses_rs2_id && (rs2_id == rd_ex)));
+    ((uses_rs1_id && (rs1_id == rd_ex)) || (uses_rs2_id && (rs2_id == rd_ex)))
+    ||
+    valid_id && // valid instruction in id
+    valid_mem && // valid instruction in mem
+    mem_rden_mem && // load instruction in mem stage
+    (rd_mem != 5'd0) &&
+    ((uses_rs1_id && (rs1_id == rd_mem)) || (uses_rs2_id && (rs2_id == rd_mem)));
+/* to solve the WNS issue of critical path:
+DMEM BRAM -> WB LSU & Forward MUX-> EX Comparator & Branch Resolver -> PC MUX -> IF stage pc update
+We stall load-use for 2 cycles rather than 1, so DMEM data can be written into register
+this will cut the critical path from WB DMEM to EX
+*/
 
-    if(valid_ex && uses_rs1_ex) begin
-        if(rs1_ex == rd_mem && reg_we_mem && rd_mem != 5'd0 && valid_mem) begin
-            // do not forward if there is a load instruction in MEM stage, since the data is not ready yet
-            if(mem_rden_mem) begin
-                rs1_forward_mux_sel = RS_FORWARD_NONE;
-            end
-            else begin
-                rs1_forward_mux_sel = RS_FORWARD_MEM;
-            end
-        end
-        else if(rs1_ex == rd_wb && reg_we_wb && rd_wb != 5'd0 && valid_wb) begin
-            rs1_forward_mux_sel = RS_FORWARD_WB;
-        end
-        else begin
-            rs1_forward_mux_sel = RS_FORWARD_NONE;
-        end
-    end
-    else begin
-        rs1_forward_mux_sel = RS_FORWARD_NONE;
-    end
+    rs1_forward_mux_sel = RS_FORWARD_NONE;
+    rs2_forward_mux_sel = RS_FORWARD_NONE;
 
-    if(valid_ex && uses_rs2_ex) begin
-        if(rs2_ex == rd_mem && reg_we_mem && rd_mem != 5'd0 && valid_mem) begin
-            if(mem_rden_mem) begin
-                rs2_forward_mux_sel = RS_FORWARD_NONE;
-            end
-            else begin
-                rs2_forward_mux_sel = RS_FORWARD_MEM;
-            end
-        end
-        else if(rs2_ex == rd_wb && reg_we_wb && rd_wb != 5'd0 && valid_wb) begin
-            rs2_forward_mux_sel = RS_FORWARD_WB;
-        end
-        else begin
-            rs2_forward_mux_sel = RS_FORWARD_NONE;
-        end
-    end
-    else begin
-        rs2_forward_mux_sel = RS_FORWARD_NONE;
-    end
+    if (rs1_mem_match)
+        rs1_forward_mux_sel = RS_FORWARD_MEM;
+    else if (rs1_wb_match)
+        rs1_forward_mux_sel = RS_FORWARD_WB;
+    if (rs2_mem_match)
+        rs2_forward_mux_sel = RS_FORWARD_MEM;
+    else if (rs2_wb_match)
+        rs2_forward_mux_sel = RS_FORWARD_WB;
 end
 
 endmodule

@@ -1,15 +1,16 @@
 # MEM priority over WB
+lui  x13, 0x10000       # DMEM base = 0x1000_0000
 addi x1, x0, 1
 addi x1, x1, 1
 add  x2, x1, x0       # x2 should be 2
 
 # Store data forwarding
 addi x3, x0, 55
-sw   x3, 0(x0)
-lw   x4, 0(x0)        # x4 should be 55
+sw   x3, 0(x13)
+lw   x4, 0(x13)       # x4 should be 55
 
 # Store base forwarding
-addi x5, x0, 16
+addi x5, x13, 16
 sw   x3, 0(x5)
 
 # Branch operand forwarding

@@ -10,10 +10,13 @@ _start:
     addi x31, x0, 0
     addi x29, x0, 0
 
+    # DMEM base address decoded by address_resolver_mem.
+    lui  x27, 0x10000
+
     # Values used to detect wrong-path register and memory writes.
     addi x20, x0, 7
     addi x21, x0, 8
-    sw   x20, 0(x0)             # sentinel: mem[0] = 7
+    sw   x20, 0(x27)            # sentinel: DMEM[0] = 7
 
     # ------------------------------------------------------------------
     # 1. BEQ taken. Static not-taken prediction must mispredict.
@@ -26,12 +29,12 @@ _start:
     addi x2,  x0, 5
     beq  x1,  x2, beq_taken
     addi x20, x0, 99            # wrong path: register write
-    sw   x20, 0(x0)             # wrong path: memory write
+    sw   x20, 0(x27)            # wrong path: memory write
 
 beq_taken:
     addi x30, x0, 7
     bne  x20, x30, fail
-    lw   x22, 0(x0)
+    lw   x22, 0(x27)
     bne  x22, x30, fail
 
     # ------------------------------------------------------------------
@@ -83,8 +86,8 @@ bne_taken:
     addi x29, x0, 5
     addi x2,  x0, 1
     addi x3,  x0, -1
-    sw   x3,  4(x0)             # mem[4] = -1
-    lw   x1,  4(x0)             # x1 = -1
+    sw   x3,  4(x27)            # DMEM[4] = -1
+    lw   x1,  4(x27)            # x1 = -1
     blt  x1,  x2, blt_taken
     addi x20, x0, 99            # wrong path
     addi x21, x0, 99            # wrong path

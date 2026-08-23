@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 package riscv_pkg;
     parameter int XLEN = 32;
     parameter int PC_START = 32'h0000_0000;
@@ -196,6 +197,7 @@ typedef struct packed {
     mem_size_t memsize;
     mem_sign_t memsign;
     wb_sel_t wb_sel;
+    logic[31:0] forward_data; // data forwarded from mem to ex stage
 } ex_mem_reg_t;
 
 typedef struct packed {
@@ -212,7 +214,7 @@ typedef struct packed {
 
     mem_size_t memsize;
     mem_sign_t memsign;
-    logic mem_rden;
+    logic mmio_rden;
 
     // control signals
     logic reg_we;
@@ -229,5 +231,11 @@ typedef enum logic [1:0] {
     RS_FORWARD_MEM,
     RS_FORWARD_WB
 } rs_forward_mux_sel_t;
+
+typedef enum logic [2:0] {
+    MMIO_WB_SEL_NONE,
+    MMIO_WB_SEL_DMEM,
+    MMIO_WB_SEL_GPIO
+} mmio_wb_sel_t;
 
 endpackage

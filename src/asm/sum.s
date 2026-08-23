@@ -2,9 +2,12 @@
 .globl _start
 
 _start:
+    # DMEM base = 0x1000_0000.
+    lui s0, 0x10000
+
     # dmem[0] = 1
     li t0, 1
-    li t1, 0
+    addi t1, s0, 0
     sw t0, 0(t1)
 
     # dmem[1] = 2
@@ -24,7 +27,7 @@ _start:
     sw t0, 16(t1)
 
     # sum(arr, 5)
-    li a0, 0
+    addi a0, s0, 0
     li a1, 5
     jal ra, sum
 
