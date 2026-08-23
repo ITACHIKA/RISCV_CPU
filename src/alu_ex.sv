@@ -22,7 +22,7 @@ always_comb begin
         ALU_XOR: result = a^b;
         ALU_SLL: result = a << b[4:0];
         ALU_SRL: result = a >> b[4:0];
-        ALU_SRA: result = $signed(a) >>> b[4:0];
+        ALU_SRA: result = $unsigned($signed(a) >>> b[4:0]);
         ALU_SLT: result = less_signed ? 32'd1 : 32'd0;
         ALU_SLTU: result = less_unsigned ? 32'd1 : 32'd0;
         ALU_COPY_B: result = b;

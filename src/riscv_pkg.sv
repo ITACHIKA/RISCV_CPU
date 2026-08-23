@@ -1,3 +1,4 @@
+`timescale 1ns / 1ps
 package riscv_pkg;
     parameter int XLEN = 32;
     parameter int PC_START = 32'h0000_0000;
