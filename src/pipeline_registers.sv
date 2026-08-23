@@ -20,6 +20,26 @@ module pipeline_registers (
     output mem_wb_reg_t mem_wb_reg_q
 );
 
+if_id_reg_t  if_id_reg_next;
+id_ex_reg_t  id_ex_reg_next;
+ex_mem_reg_t ex_mem_reg_next;
+mem_wb_reg_t mem_wb_reg_next;
+
+always_comb begin
+    if_id_reg_next = if_id_reg_d;
+    id_ex_reg_next = id_ex_reg_d;
+    ex_mem_reg_next = ex_mem_reg_d;
+    mem_wb_reg_next = mem_wb_reg_d;
+    if(redirect_request_ex) begin
+        if_id_reg_next.valid = 1'b0; // Flush the IF/ID register on redirect
+        id_ex_reg_next.valid = 1'b0;
+    end
+    else if(load_use_stall_if) begin
+        if_id_reg_next = if_id_reg_q; // Stall the IF/ID register on load-use hazard
+        id_ex_reg_next.valid = 1'b0;
+    end
+end
+
 always_ff @(posedge clk) begin
     if (!reset_n) begin
         if_id_reg_q  <= '0;
@@ -27,23 +47,11 @@ always_ff @(posedge clk) begin
         ex_mem_reg_q <= '0;
         mem_wb_reg_q <= '0;
     end
-    else if (redirect_request_ex) begin
-        if_id_reg_q  <= '0; // Flush the IF/ID register on redirect
-        id_ex_reg_q  <= '0;
-        ex_mem_reg_q <= ex_mem_reg_d;
-        mem_wb_reg_q <= mem_wb_reg_d;
-    end
-    else if (load_use_stall_if) begin
-        if_id_reg_q  <= if_id_reg_q; // Stall the IF/ID register on load-use hazard
-        id_ex_reg_q  <= '0;
-        ex_mem_reg_q <= ex_mem_reg_d;
-        mem_wb_reg_q <= mem_wb_reg_d;
-    end
     else begin
-        if_id_reg_q  <= if_id_reg_d;
-        id_ex_reg_q  <= id_ex_reg_d;
-        ex_mem_reg_q <= ex_mem_reg_d;
-        mem_wb_reg_q <= mem_wb_reg_d;
+        if_id_reg_q  <= if_id_reg_next;
+        id_ex_reg_q  <= id_ex_reg_next;
+        ex_mem_reg_q <= ex_mem_reg_next;
+        mem_wb_reg_q <= mem_wb_reg_next;
     end
 end
 
