@@ -31,8 +31,8 @@ logic        pc_update_enable_if;
 pc_predict_result_t pc_predict_result_if;
 pc_predict_result_t pc_predict_result_imem_if;
 
-assign imem_req_valid_if  = !stall_if && !redirect_request_ex;
-assign imem_resp_ready_if = !stall_if && !redirect_request_ex;
+assign imem_req_valid_if  = !stall_if;
+assign imem_resp_ready_if = !stall_if;
 assign imem_flush_if      = redirect_request_ex;
 assign imem_req_addr_if   = current_pc_if;
 assign imem_req_fire_if   = imem_req_valid_if && imem_req_ready_if;
@@ -73,7 +73,7 @@ always_ff @(posedge clk) begin
         current_pc_imem_if          <= 32'd0;
         pc_predict_result_imem_if   <= '0;
     end
-    else if (imem_req_fire_if) begin
+    else if(imem_req_fire_if) begin
         current_pc_imem_if        <= current_pc_if;
         pc_predict_result_imem_if <= pc_predict_result_if;
     end

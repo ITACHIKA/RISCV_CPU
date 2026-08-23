@@ -27,10 +27,9 @@ assign rden = req_valid && req_ready; // read enable signal, when request is val
 
 // imem can accept request, when there is no response waiting to be accepted,
 // or when CPU is ready to accpet response at this cycle, so a new request can be accepted by the end of this cycle
-assign req_ready = (!resp_valid || resp_ready) && !flush;
+assign req_ready = (!resp_valid || resp_ready);
 
 always_ff @(posedge clk) begin
-    instruction <= instr_rom[addr[31:2]]; // no need for rden control for better timing
     if(!reset_n || flush) begin
         resp_valid <= 1'b0;
     end
@@ -38,8 +37,9 @@ always_ff @(posedge clk) begin
         if(req_ready) begin
             resp_valid <= req_valid;
         end // keep resp_valid if CPU is not ready to accept new instruction
-        // if(rden) begin // read enable and CPU is capable of accepting new instruction
-        // end
+        if(rden) begin // read enable and CPU is capable of accepting new instruction
+            instruction <= instr_rom[addr[31:2]];
+        end
     end
 end
 
