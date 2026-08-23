@@ -13,7 +13,9 @@ module imem_if(
     output logic req_ready,
     output logic resp_valid
 );
-logic [31:0] instr_rom [0:255];
+
+(* rom_style = "block" *)
+logic [31:0] instr_rom [0:2047]; // 8KB instruction memory, 2048 instructions
 initial begin
     $readmemh("asm.mem", instr_rom);
 end

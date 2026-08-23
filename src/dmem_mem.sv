@@ -13,7 +13,7 @@ module dmem_mem(
     output logic [31:0] rdata
 );
 
-logic [31:0] data_ram [0:255]='{default:32'd0};
+logic [31:0] data_ram [0:4095]='{default:32'd0};
 
 always_ff @(posedge clk) begin
     if(wren) begin

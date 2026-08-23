@@ -3,7 +3,11 @@ import riscv_pkg::*;
 module riscv_cpu (
     // Inputs
     input logic sysclk,
-    input logic reset
+    input logic reset,
+    input logic [1:0] btn,
+
+    // Outputs
+    output logic [0:0] led
 );
 
 logic reset_n;
@@ -39,7 +43,7 @@ imm_type_t imm_type;
 logic reg_we_id;
 logic mem_re_id;
 logic mem_we_id;
-wb_sel_t wb_sel_id;
+wb_sel_t wb_sel_id; // this is the main mux to determine which data source to write back to register file
 alu_op_t alu_op_id;
 pc_sel_t pc_sel_id;
 logic illegal_instr;
@@ -63,12 +67,20 @@ logic take_ex;
 
 logic dmem_resolved_wren;
 logic dmem_resolved_rden;
-logic [31:0] mem_wdata;
-logic [31:0] dmem_output_raw;
-logic [31:0] dmem_output;
-logic [3:0] wstrb;
+logic [31:0] mmio_wdata;
+logic [3:0] mmio_wstrb;
 logic load_misalign_except_mem;
 logic store_misalign_except_mem;
+
+logic gpio_resolved_wren;
+logic gpio_resolved_rden;
+logic [31:0] gpio_data_output;
+(* ASYNC_REG = "TRUE" *) logic [1:0] gpio_btn_sync_ff;
+
+logic [31:0] dmem_output_raw;
+logic [31:0] mmio_output_raw;
+logic [31:0] mmio_output;
+mmio_wb_sel_t mmio_wb_sel; // this is smaller mux to determine if data to write back to register comes from mmio, which specific mmio device it is
 
 //logic imem_rden_if;
 
@@ -86,6 +98,17 @@ rs_forward_mux_sel_t rs1_forward_mux_sel, rs2_forward_mux_sel;
 logic [31:0] alu_a_forward_result_ex, alu_b_forward_result_ex;
 
 logic load_use_stall_if;
+
+// Synchronize the asynchronous GPIO button input into the CPU clock domain.
+always_ff @(posedge clk) begin
+    if(!reset_n) begin
+        gpio_btn_sync_ff <= 2'b00;
+    end
+    else begin
+        gpio_btn_sync_ff[0] <= btn[1];
+        gpio_btn_sync_ff[1] <= gpio_btn_sync_ff[0];
+    end
+end
 
 comparator_ex comparator(
     // Inputs
@@ -247,17 +270,17 @@ dmem_mem dmem(
     .wren(dmem_resolved_wren),
     .rden(dmem_resolved_rden),
     .addr(ex_mem_reg_q.alu_result),
-    .wdata(mem_wdata),
-    .wstrb(wstrb),
+    .wdata(mmio_wdata),
+    .wstrb(mmio_wstrb),
 
     // Outputs
     .rdata(dmem_output_raw)
 );
-
+// lsu now serves load store for all mmio devices rather than dmem only
 lsu_mem lsu_mem(
     // Inputs
-    .wren(dmem_resolved_wren),
-    .rden(dmem_resolved_rden),
+    .wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
+    .rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
     .addr(ex_mem_reg_q.alu_result), // riscv load/store instruction always uses alu_result as address, addr = rs1 + imm
     .store_data(ex_mem_reg_q.rs2_data), // riscv store instruction always stores data from rs2
     // .mem_data(dmem_output_raw),
@@ -265,8 +288,8 @@ lsu_mem lsu_mem(
     // .memsign(ex_mem_reg_q.memsign),
 
     // Outputs
-    .wstrb(wstrb),
-    .mem_wdata(mem_wdata),
+    .wstrb(mmio_wstrb),
+    .mem_wdata(mmio_wdata),
     // .load_data(dmem_output),
     .load_misalign_except(load_misalign_except_mem),
     .store_misalign_except(store_misalign_except_mem)
@@ -274,25 +297,46 @@ lsu_mem lsu_mem(
 
 lsu_wb lsu_wb(
     // Inputs
-    .mem_raw_data(dmem_output_raw),
+    .mem_raw_data(mmio_output_raw),
     .mem_addr(mem_wb_reg_q.alu_result),
     .memsize(mem_wb_reg_q.memsize),
     .memsign(mem_wb_reg_q.memsign),
-    .rden(mem_wb_reg_q.dmem_resolved_rden && mem_wb_reg_q.valid),
+    .rden(mem_wb_reg_q.mmio_rden && mem_wb_reg_q.valid),
 
     // Outputs
-    .load_data(dmem_output)
+    .load_data(mmio_output)
 );
 
 address_resolver_mem address_resolver_mem (
     // Inputs
+    .clk(clk),
+    .reset_n(reset_n),
     .addr     (ex_mem_reg_q.alu_result),
     .mmio_device_wren(ex_mem_reg_q.mem_we && ex_mem_reg_q.valid),
     .mmio_device_rden(ex_mem_reg_q.mem_re && ex_mem_reg_q.valid),
 
     // Outputs
+    .mmio_wb_sel(mmio_wb_sel),
     .dmem_resolved_wren(dmem_resolved_wren),
-    .dmem_resolved_rden(dmem_resolved_rden)
+    .dmem_resolved_rden(dmem_resolved_rden),
+    .gpio_resolved_wren(gpio_resolved_wren),
+    .gpio_resolved_rden(gpio_resolved_rden)
+);
+
+gpio gpio (
+    // Inputs
+    .clk       (clk),
+    .reset_n   (reset_n),
+    .gpio_wren (gpio_resolved_wren),
+    .gpio_rden (gpio_resolved_rden),
+    .gpio_addr (ex_mem_reg_q.alu_result),
+    .gpio_wdata(mmio_wdata),
+    .gpio_wstrb(mmio_wstrb),
+    .gpio_btn_in(gpio_btn_sync_ff[1]),
+
+    // Outputs
+    .rdata     (gpio_data_output),
+    .gpio_led_out(led[0])
 );
 
 hazard hazard (
@@ -421,8 +465,8 @@ always_comb begin
     mem_wb_reg_d.rd = ex_mem_reg_q.rd;
     mem_wb_reg_d.memsize = ex_mem_reg_q.memsize;
     mem_wb_reg_d.memsign = ex_mem_reg_q.memsign;
-    // mem_wb_reg_d.mem_rden = ex_mem_reg_q.mem_re;
-    mem_wb_reg_d.dmem_resolved_rden = dmem_resolved_rden; // resolved rden signal that indicate this instr reads from dmem specifically
+    mem_wb_reg_d.mmio_rden = ex_mem_reg_q.mem_re;
+    // mem_wb_reg_d.dmem_resolved_rden = dmem_resolved_rden; // resolved rden signal that indicate this instr reads from dmem specifically
     mem_wb_reg_d.reg_we = ex_mem_reg_q.reg_we;
     mem_wb_reg_d.wb_sel = ex_mem_reg_q.wb_sel;
     mem_wb_reg_d.valid = ex_mem_reg_q.valid;
@@ -486,9 +530,18 @@ always_comb begin
 end
 
 always_comb begin
+    unique case(mmio_wb_sel)
+        MMIO_WB_SEL_NONE: mmio_output_raw = 32'd0;
+        MMIO_WB_SEL_DMEM: mmio_output_raw = dmem_output_raw;
+        MMIO_WB_SEL_GPIO: mmio_output_raw = gpio_data_output;
+        default: mmio_output_raw = 32'd0;
+    endcase
+end
+
+always_comb begin
     unique case(mem_wb_reg_q.wb_sel)
         WB_ALU: wb_data = mem_wb_reg_q.alu_result;
-        WB_MEM: wb_data = dmem_output; // now dmem output is processed by lsu_wb and available in WB stage
+        WB_MEM: wb_data = mmio_output; // now dmem output is processed by lsu_wb and available in WB stage
         WB_PC: wb_data = mem_wb_reg_q.pcplus4; //for JAL/R
         default: wb_data = 32'd0;
     endcase
