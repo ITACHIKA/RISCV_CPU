@@ -30,12 +30,12 @@ always_comb begin
     id_ex_reg_next = id_ex_reg_d;
     ex_mem_reg_next = ex_mem_reg_d;
     mem_wb_reg_next = mem_wb_reg_d;
-    if(redirect_request_ex) begin
-        if_id_reg_next.valid = 1'b0; // Flush the IF/ID register on redirect
+    if(load_use_stall_if) begin
+        if_id_reg_next = if_id_reg_q; // Stall the IF/ID register on load-use hazard
         id_ex_reg_next.valid = 1'b0;
     end
-    else if(load_use_stall_if) begin
-        if_id_reg_next = if_id_reg_q; // Stall the IF/ID register on load-use hazard
+    if(redirect_request_ex) begin
+        if_id_reg_next.valid = 1'b0; // Flush the IF/ID register on redirect
         id_ex_reg_next.valid = 1'b0;
     end
 end
