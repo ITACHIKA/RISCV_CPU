@@ -5,11 +5,14 @@ _start:
     # x31 is the test status: 0 = running, 1 = pass, -1 = fail.
     addi x31, x0, 0
 
+    # DMEM is mapped at 0x1000_0000. Keep its base address in x27.
+    lui  x27, 0x10000
+
     # Initialize data memory used by the load/store tests.
     addi x3, x0, 55
-    addi x5, x0, 16
-    sw   x3, 0(x0)             # mem[0]  = 55
-    sw   x3, 0(x5)             # mem[16] = 55
+    addi x5, x27, 16
+    sw   x3, 0(x27)            # DMEM[0]  = 55
+    sw   x3, 0(x5)             # DMEM[16] = 55
 
     # ------------------------------------------------------------------
     # MEM forwarding must have priority over WB forwarding.
@@ -52,7 +55,7 @@ _start:
     # Load-use: the loaded value is used by both EX operands.
     # Exactly one stall is expected, followed by WB forwarding to both.
     # ------------------------------------------------------------------
-    lw   x18, 0(x0)            # x18 = 55
+    lw   x18, 0(x27)           # x18 = 55
     add  x19, x18, x18         # x19 = 110
     addi x30, x0, 110
     bne  x19, x30, fail
@@ -60,20 +63,20 @@ _start:
     # ------------------------------------------------------------------
     # Load-use on store data (rs2).
     # ------------------------------------------------------------------
-    lw   x20, 0(x0)            # x20 = 55
-    sw   x20, 20(x0)           # mem[20] = 55
-    lw   x21, 20(x0)
+    lw   x20, 0(x27)           # x20 = 55
+    sw   x20, 20(x27)          # DMEM[20] = 55
+    lw   x21, 20(x27)
     addi x30, x0, 55
     bne  x21, x30, fail
 
     # ------------------------------------------------------------------
     # Load-use on a store base address (rs1).
     # ------------------------------------------------------------------
-    addi x22, x0, 32
-    sw   x22, 8(x0)            # mem[8] = 32
-    lw   x22, 8(x0)            # x22 = 32
-    sw   x3, 0(x22)            # mem[32] = 55
-    lw   x23, 32(x0)
+    addi x22, x27, 32
+    sw   x22, 8(x27)           # DMEM[8] = 0x1000_0020
+    lw   x22, 8(x27)           # x22 = 0x1000_0020
+    sw   x3, 0(x22)            # DMEM[32] = 55
+    lw   x23, 32(x27)
     addi x30, x0, 55
     bne  x23, x30, fail
 
@@ -82,14 +85,14 @@ _start:
     # Both younger wrong-path instructions must be flushed.
     # ------------------------------------------------------------------
     addi x24, x0, 7
-    sw   x24, 36(x0)           # sentinel: mem[36] = 7
-    lw   x22, 0(x0)            # x22 = 55
+    sw   x24, 36(x27)          # sentinel: DMEM[36] = 7
+    lw   x22, 0(x27)           # x22 = 55
     beq  x22, x3, load_branch_taken
     addi x24, x0, 99           # wrong path: must not write x24
-    sw   x24, 36(x0)           # wrong path: must not change sentinel
+    sw   x24, 36(x27)          # wrong path: must not change sentinel
 
 load_branch_taken:
-    lw   x24, 36(x0)
+    lw   x24, 36(x27)
     addi x30, x0, 7
     bne  x24, x30, fail
 
@@ -114,7 +117,7 @@ alu_branch_taken:
     # LUI/ADDI construct the expected return address without a pseudo-op.
     # ------------------------------------------------------------------
     addi x26, x0, 7
-    sw   x26, 40(x0)           # sentinel: mem[40] = 7
+    sw   x26, 40(x27)          # sentinel: DMEM[40] = 7
 
     lui   x30, %hi(jal_return)
     addi  x30, x30, %lo(jal_return)
@@ -122,11 +125,11 @@ alu_branch_taken:
 
 jal_return:
     addi x26, x0, 99           # wrong path
-    sw   x26, 40(x0)           # wrong path
+    sw   x26, 40(x27)          # wrong path
 
 jal_target:
     bne  x25, x30, fail
-    lw   x26, 40(x0)
+    lw   x26, 40(x27)
     addi x30, x0, 7
     bne  x26, x30, fail
 
@@ -135,7 +138,7 @@ jal_target:
     # The ADDI immediately before JALR produces its rs1 target address.
     # ------------------------------------------------------------------
     addi x26, x0, 7
-    sw   x26, 44(x0)           # sentinel: mem[44] = 7
+    sw   x26, 44(x27)          # sentinel: DMEM[44] = 7
 
     lui   x30, %hi(jalr_return)
     addi  x30, x30, %lo(jalr_return)
@@ -146,11 +149,11 @@ jal_target:
 
 jalr_return:
     addi x26, x0, 99           # wrong path
-    sw   x26, 44(x0)           # wrong path
+    sw   x26, 44(x27)          # wrong path
 
 jalr_target:
     bne  x29, x30, fail
-    lw   x26, 44(x0)
+    lw   x26, 44(x27)
     addi x30, x0, 7
     bne  x26, x30, fail
 
@@ -172,7 +175,7 @@ jalr_target:
     addi x0, x0, 123
     add  x28, x0, x0
     bne  x28, x0, fail
-    lw   x0, 0(x0)
+    lw   x0, 0(x27)
     add  x28, x0, x0
     bne  x28, x0, fail
 
@@ -182,7 +185,7 @@ jalr_target:
     # This case must be checked in the waveform because an unnecessary
     # stall would not change the architectural result.
     # ------------------------------------------------------------------
-    lw   x5, 0(x0)
+    lw   x5, 0(x27)
     addi x6, x0, 5
     addi x30, x0, 5
     bne  x6, x30, fail
