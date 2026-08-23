@@ -26,7 +26,8 @@ always_comb begin
         end
 
         PC_BRANCH: begin
-            redirect_next_pc = branch_taken? current_pc + imm : current_pc + 32'd4;
+            // redirect_next_pc = branch_taken? current_pc + imm : current_pc + 32'd4;
+            redirect_next_pc = current_pc + imm; // since branch_taken is already checked in redirect_pc_request, we can just use the branch target address here
         end
 
         PC_JAL: begin
@@ -45,8 +46,23 @@ always_comb begin
             redirect_next_pc = current_pc + 32'd4;
         end
     endcase
+end
 
-    redirect_pc_request = valid_ex && (redirect_next_pc != predicted_next_pc);
+always_comb begin
+    redirect_pc_request = 1'b0;
+
+    unique case (pc_sel)
+        PC_BRANCH:
+            redirect_pc_request = valid_ex && branch_taken;
+
+        PC_JAL,
+        PC_JALR,
+        PC_TRAP:
+            redirect_pc_request = valid_ex;
+
+        default:
+            redirect_pc_request = 1'b0;
+    endcase
 end
 
 endmodule

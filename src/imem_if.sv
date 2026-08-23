@@ -30,6 +30,7 @@ assign rden = req_valid && req_ready; // read enable signal, when request is val
 assign req_ready = (!resp_valid || resp_ready) && !flush;
 
 always_ff @(posedge clk) begin
+    instruction <= instr_rom[addr[31:2]]; // no need for rden control for better timing
     if(!reset_n || flush) begin
         resp_valid <= 1'b0;
     end
@@ -37,9 +38,8 @@ always_ff @(posedge clk) begin
         if(req_ready) begin
             resp_valid <= req_valid;
         end // keep resp_valid if CPU is not ready to accept new instruction
-        if(rden) begin // read enable and CPU is capable of accepting new instruction
-            instruction <= instr_rom[addr[31:2]];
-        end
+        // if(rden) begin // read enable and CPU is capable of accepting new instruction
+        // end
     end
 end
 

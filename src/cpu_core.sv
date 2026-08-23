@@ -41,6 +41,8 @@ rs_forward_mux_sel_t rs2_forward_mux_sel_ex;
 
 logic [4:0]  rd_addr_wb;
 logic [31:0] wb_data_wb;
+logic [31:0] wb_forward_data_wb;
+logic        wb_forward_valid_wb;
 logic        rd_we_wb;
 
 logic illegal_instr_id;
@@ -85,7 +87,8 @@ execute_stage_ex execute_stage (
     // Inputs
     .id_ex_reg_q        (id_ex_reg_q),
     .ex_mem_reg_q       (ex_mem_reg_q), // need to connect ex_mem_reg_q to the execute stage for forwarding logic
-    .wb_data_wb             (wb_data_wb),
+    // .wb_data_wb             (wb_data_wb),
+    .wb_data_wb             (wb_forward_data_wb), // use dedicated forwarding data, which doesn't include MEM forwarding
     .rs1_forward_mux_sel_ex (rs1_forward_mux_sel_ex),
     .rs2_forward_mux_sel_ex (rs2_forward_mux_sel_ex),
 
@@ -118,6 +121,8 @@ writeback_stage_wb writeback_stage (
     // Outputs
     .rd_addr_wb(rd_addr_wb),
     .wb_data_wb(wb_data_wb),
+    .wb_forward_data_wb(wb_forward_data_wb),
+    .wb_forward_valid_wb(wb_forward_valid_wb),
     .rd_we_wb  (rd_we_wb)
 );
 
@@ -132,6 +137,7 @@ hazard hazard (
     .rd_wb        (mem_wb_reg_q.rd),
     .reg_we_mem   (ex_mem_reg_q.reg_we),
     .reg_we_wb    (mem_wb_reg_q.reg_we),
+    .wb_forward_valid_wb(wb_forward_valid_wb),
     .valid_id     (if_id_reg_q.valid),
     .valid_ex     (id_ex_reg_q.valid),
     .valid_mem    (ex_mem_reg_q.valid),

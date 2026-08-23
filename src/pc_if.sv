@@ -14,13 +14,18 @@ module pc_if (
     output logic [XLEN-1:0] current_pc
 );
 
+logic [XLEN-1:0] current_pc_next;
+
+always_comb begin
+    current_pc_next = next_pc;
+    if(!pc_update_enable)
+        current_pc_next = current_pc; // hold the current pc if not updating
+end
+
 always_ff @(posedge clk) begin
     if(!reset_n)
         current_pc <= PC_START;
     else
-        if(pc_update_enable)
-            current_pc <= next_pc;
-        else
-            current_pc <= current_pc; // hold the current pc if not updating
+        current_pc <= current_pc_next;
 end
 endmodule
