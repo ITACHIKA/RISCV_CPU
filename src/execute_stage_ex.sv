@@ -28,12 +28,15 @@ logic less_unsigned_ex;
 logic branch_taken_ex;
 
 always_comb begin
-    unique case (ex_mem_reg_q.wb_sel)
-        WB_ALU:  mem_forward_result_ex = ex_mem_reg_q.alu_result;
-        WB_MEM:  mem_forward_result_ex = 32'd0;
-        WB_PC:   mem_forward_result_ex = ex_mem_reg_q.pcplus4;
-        default: mem_forward_result_ex = 32'd0;
-    endcase
+    // unique case (ex_mem_reg_q.wb_sel)
+    //     WB_ALU:  mem_forward_result_ex = ex_mem_reg_q.alu_result;
+    //     WB_MEM:  mem_forward_result_ex = 32'd0;
+    //     WB_PC:   mem_forward_result_ex = ex_mem_reg_q.pcplus4;
+    //     default: mem_forward_result_ex = 32'd0;
+    // endcase
+    mem_forward_result_ex = ex_mem_reg_q.forward_data;
+    // use the forwarded data from MEM stage to EX stage, which can be either ALU result or PC+4, but not MEM result
+    // saves a MUX for better timing
 end
 
 always_comb begin
@@ -131,6 +134,7 @@ always_comb begin
     ex_mem_reg_d.memsize    = id_ex_reg_q.memsize;
     ex_mem_reg_d.memsign    = id_ex_reg_q.memsign;
     ex_mem_reg_d.wb_sel     = id_ex_reg_q.wb_sel;
+    ex_mem_reg_d.forward_data = (id_ex_reg_q.wb_sel == WB_PC) ? id_ex_reg_q.pcplus4 : alu_result_ex;
     ex_mem_reg_d.valid      = id_ex_reg_q.valid;
 end
 

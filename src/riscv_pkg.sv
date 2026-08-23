@@ -197,6 +197,7 @@ typedef struct packed {
     mem_size_t memsize;
     mem_sign_t memsign;
     wb_sel_t wb_sel;
+    logic[31:0] forward_data; // data forwarded from mem to ex stage
 } ex_mem_reg_t;
 
 typedef struct packed {
