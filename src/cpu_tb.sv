@@ -7,14 +7,14 @@ logic reset;
 logic [1:0] btn;
 logic [0:0] led;
 
-cmod_a7_top uut (
-    // Inputs
-    .sysclk(clk),
-    .reset(reset),
-    .btn(btn),
+logic reset_n;
+assign reset_n = ~reset;
 
-    // Outputs
-    .led(led)
+riscv_soc uut (
+    .clk         (clk),
+    .reset_n     (reset_n),
+    .gpio_btn_in (btn),
+    .gpio_led_out(led)
 );
 
 initial clk=0;
