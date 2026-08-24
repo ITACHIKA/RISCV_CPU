@@ -198,6 +198,9 @@ typedef struct packed {
     mem_sign_t memsign;
     wb_sel_t wb_sel;
     logic[31:0] forward_data; // data forwarded from mem to ex stage
+
+    logic redirect_request; // if branch misprediction, redirect pc to correct pc in MEM stage
+    logic [31:0] redirect_request_pc; // correct pc to redirect to in MEM stage
 } ex_mem_reg_t;
 
 typedef struct packed {

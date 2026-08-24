@@ -6,7 +6,7 @@ module pipeline_registers (
     // Inputs
     input  logic        clk,
     input  logic        reset_n,
-    input  logic        redirect_request_ex,
+    input  logic        redirect_request_mem,
     input  logic        load_use_stall_if,
     input  if_id_reg_t  if_id_reg_d,
     input  id_ex_reg_t  id_ex_reg_d,
@@ -34,9 +34,11 @@ always_comb begin
         if_id_reg_next = if_id_reg_q; // Stall the IF/ID register on load-use hazard
         id_ex_reg_next.valid = 1'b0;
     end
-    if(redirect_request_ex) begin
+    if(redirect_request_mem) begin
         if_id_reg_next.valid = 1'b0; // Flush the IF/ID register on redirect
         id_ex_reg_next.valid = 1'b0;
+
+        ex_mem_reg_next.valid = 1'b0; // Flush the EX/MEM register on redirect, since redirect is done in MEM stage rather than EX now
     end
 end
 

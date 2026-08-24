@@ -32,8 +32,10 @@ ex_mem_reg_t ex_mem_reg_d;
 mem_wb_reg_t mem_wb_reg_q;
 mem_wb_reg_t mem_wb_reg_d;
 
-logic redirect_pc_request_ex;
-logic [31:0] redirect_next_pc_ex;
+// logic redirect_pc_request_ex;
+// logic [31:0] redirect_next_pc_ex;
+logic redirect_pc_request_mem;
+logic [31:0] redirect_next_pc_mem;
 logic load_use_stall_if;
 
 rs_forward_mux_sel_t rs1_forward_mux_sel_ex;
@@ -55,8 +57,8 @@ frontend_if frontend (
     .clk              (clk),
     .reset_n          (reset_n),
     .stall_if           (load_use_stall_if),
-    .redirect_request_ex(redirect_pc_request_ex),
-    .redirect_pc_ex     (redirect_next_pc_ex),
+    .redirect_request_mem(redirect_pc_request_mem),
+    .redirect_pc_mem     (redirect_next_pc_mem),
     .imem_req_ready_if  (imem_req_ready_if),
     .imem_resp_valid_if (imem_resp_valid_if),
     .imem_resp_data_if  (imem_resp_data_if),
@@ -93,9 +95,9 @@ execute_stage_ex execute_stage (
     .rs2_forward_mux_sel_ex (rs2_forward_mux_sel_ex),
 
     // Outputs
-    .ex_mem_reg_d         (ex_mem_reg_d),
-    .redirect_pc_request_ex(redirect_pc_request_ex),
-    .redirect_next_pc_ex   (redirect_next_pc_ex)
+    .ex_mem_reg_d         (ex_mem_reg_d)
+    // .redirect_pc_request_ex(redirect_pc_request_ex),
+    // .redirect_next_pc_ex   (redirect_next_pc_ex)
 );
 
 memory_stage_mem memory_stage (
@@ -110,7 +112,9 @@ memory_stage_mem memory_stage (
     .data_req_wstrb_mem    (data_req_wstrb_mem),
     .mem_wb_reg_d          (mem_wb_reg_d),
     .load_misalign_except_mem (load_misalign_except_mem),
-    .store_misalign_except_mem(store_misalign_except_mem)
+    .store_misalign_except_mem(store_misalign_except_mem),
+    .redirect_pc_request_mem(redirect_pc_request_mem),
+    .redirect_next_pc_mem   (redirect_next_pc_mem)
 );
 
 writeback_stage_wb writeback_stage (
@@ -159,7 +163,7 @@ pipeline_registers pipeline_regs (
     // Inputs
     .clk             (clk),
     .reset_n         (reset_n),
-    .redirect_request_ex(redirect_pc_request_ex),
+    .redirect_request_mem(redirect_pc_request_mem),
     .load_use_stall_if  (load_use_stall_if),
     .if_id_reg_d     (if_id_reg_d),
     .id_ex_reg_d     (id_ex_reg_d),

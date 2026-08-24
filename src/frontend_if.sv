@@ -7,8 +7,8 @@ module frontend_if (
     input  logic        clk,
     input  logic        reset_n,
     input  logic        stall_if,
-    input  logic        redirect_request_ex,
-    input  logic [31:0] redirect_pc_ex,
+    input  logic        redirect_request_mem,
+    input  logic [31:0] redirect_pc_mem,
     input  logic        imem_req_ready_if,
     input  logic        imem_resp_valid_if,
     input  logic [31:0] imem_resp_data_if,
@@ -33,7 +33,7 @@ pc_predict_result_t pc_predict_result_imem_if;
 
 assign imem_req_valid_if  = !stall_if;
 assign imem_resp_ready_if = !stall_if;
-assign imem_flush_if      = redirect_request_ex;
+assign imem_flush_if      = redirect_request_mem;
 assign imem_req_addr_if   = current_pc_if;
 assign imem_req_fire_if   = imem_req_valid_if && imem_req_ready_if;
 assign imem_resp_fire_if  = imem_resp_valid_if && imem_resp_ready_if;
@@ -61,12 +61,12 @@ pc_if pc (
 
 always_comb begin
     next_pc_if = pc_predict_result_if.predicted_pc;
-    if (redirect_request_ex) begin
-        next_pc_if = redirect_pc_ex;
+    if (redirect_request_mem) begin
+        next_pc_if = redirect_pc_mem;
     end
 end
 
-assign pc_update_enable_if = imem_req_fire_if || redirect_request_ex;
+assign pc_update_enable_if = imem_req_fire_if || redirect_request_mem;
 
 always_ff @(posedge clk) begin
     if (!reset_n) begin

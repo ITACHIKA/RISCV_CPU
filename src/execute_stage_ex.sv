@@ -11,9 +11,9 @@ module execute_stage_ex (
     input  rs_forward_mux_sel_t   rs2_forward_mux_sel_ex,
 
     // Outputs
-    output ex_mem_reg_t           ex_mem_reg_d,
-    output logic                  redirect_pc_request_ex,
-    output logic [31:0]           redirect_next_pc_ex
+    output ex_mem_reg_t           ex_mem_reg_d
+    // output logic                  redirect_pc_request_ex,
+    // output logic [31:0]           redirect_next_pc_ex
 );
 
 logic [31:0] mem_forward_result_ex;
@@ -26,6 +26,9 @@ logic eq_ex;
 logic less_signed_ex;
 logic less_unsigned_ex;
 logic branch_taken_ex;
+
+logic redirect_pc_request_ex;
+logic [31:0] redirect_next_pc_ex;
 
 always_comb begin
     // unique case (ex_mem_reg_q.wb_sel)
@@ -135,6 +138,8 @@ always_comb begin
     ex_mem_reg_d.memsign    = id_ex_reg_q.memsign;
     ex_mem_reg_d.wb_sel     = id_ex_reg_q.wb_sel;
     ex_mem_reg_d.forward_data = (id_ex_reg_q.wb_sel == WB_PC) ? id_ex_reg_q.pcplus4 : alu_result_ex;
+    ex_mem_reg_d.redirect_request = redirect_pc_request_ex;
+    ex_mem_reg_d.redirect_request_pc = redirect_next_pc_ex; // redirect to the correct pc in MEM stage to cut critical path WNS
     ex_mem_reg_d.valid      = id_ex_reg_q.valid;
 end
 
