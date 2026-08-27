@@ -13,6 +13,12 @@ module frontend_if (
     input  logic        imem_resp_valid_if,
     input  logic [31:0] imem_resp_data_if,
 
+    input logic [31:0] btb_feedback_pc_mem,
+    input logic [31:0] btb_feedback_actual_target_mem,
+    input logic        btb_feedback_taken_mem,
+    input logic        btb_feedback_valid_mem,
+    input branch_predict_type_t btb_feedback_predict_type_mem,
+
     // Outputs
     output logic        imem_req_valid_if,
     output logic [31:0] imem_req_addr_if,
@@ -43,6 +49,12 @@ branch_predict_if branch_predict (
     .clk       (clk),
     .reset_n   (reset_n),
     .current_pc(current_pc_if),
+
+    .btb_feedback_pc(btb_feedback_pc_mem),
+    .btb_feedback_actual_target(btb_feedback_actual_target_mem),
+    .btb_feedback_taken(btb_feedback_taken_mem),
+    .btb_feedback_valid(btb_feedback_valid_mem),
+    .btb_feedback_predict_type(btb_feedback_predict_type_mem),
 
     // Outputs
     .branch_predict_result(pc_predict_result_if)
@@ -85,6 +97,7 @@ always_comb begin
     if_id_reg_d.pcplus4       = current_pc_imem_if + 32'd4;
     if_id_reg_d.instruction   = imem_resp_data_if;
     if_id_reg_d.predicted_pc  = pc_predict_result_imem_if.predicted_pc;
+    if_id_reg_d.predicted_taken = pc_predict_result_imem_if.predict_taken;
     if_id_reg_d.valid         = imem_resp_fire_if;
 end
 

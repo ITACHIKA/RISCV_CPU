@@ -63,6 +63,12 @@ frontend_if frontend (
     .imem_resp_valid_if (imem_resp_valid_if),
     .imem_resp_data_if  (imem_resp_data_if),
 
+    .btb_feedback_pc_mem             (ex_mem_reg_q.pc),
+    .btb_feedback_actual_target_mem  (ex_mem_reg_q.btb_target_pc),
+    .btb_feedback_taken_mem          (ex_mem_reg_q.actual_taken),
+    .btb_feedback_valid_mem          (ex_mem_reg_q.btb_update_valid && ex_mem_reg_q.valid),
+    .btb_feedback_predict_type_mem   (ex_mem_reg_q.btb_update_type),
+
     // Outputs
     .imem_req_valid_if (imem_req_valid_if),
     .imem_req_addr_if  (imem_req_addr_if),
