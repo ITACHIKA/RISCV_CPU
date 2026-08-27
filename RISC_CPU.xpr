@@ -104,42 +104,42 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/alu_ex.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/ex/alu_ex.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/branch_ex.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/ex/branch_ex.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/branch_predict_if.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/if/branch_predict_if.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/comparator_ex.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/ex/comparator_ex.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/control_flow_resolver_ex.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/ex/control_flow_resolver_ex.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/control_id.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/id/control_id.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -153,14 +153,14 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/decode_stage_id.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/id/decode_stage_id.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/decoder_id.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/id/decoder_id.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -174,14 +174,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/execute_stage_ex.sv">
-        <FileInfo>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/frontend_if.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/ex/execute_stage_ex.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -209,35 +202,42 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/imm_gen_id.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/id/imm_gen_id.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/lsu_mem.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/if/instruction_fetch_stage_if.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/lsu_wb.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/mem/lsu_mem.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/memory_stage_mem.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/wb/lsu_wb.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/pc_if.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/mem/memory_stage_mem.sv">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/if/pc_if.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -251,7 +251,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/registers_id_wb.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/id/registers_id.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>
@@ -265,7 +265,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/src/riscv_soc/cpu_core/writeback_stage_wb.sv">
+      <File Path="$PPRDIR/src/riscv_soc/cpu_core/wb/writeback_stage_wb.sv">
         <FileInfo>
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="implementation"/>

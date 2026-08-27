@@ -52,7 +52,7 @@ logic load_misalign_except_mem;
 logic store_misalign_except_mem;
 logic exception_core;
 
-frontend_if frontend (
+instruction_fetch_stage_if if_stage (
     // Inputs
     .clk              (clk),
     .reset_n          (reset_n),

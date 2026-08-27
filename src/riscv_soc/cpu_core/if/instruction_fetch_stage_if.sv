@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 import riscv_pkg::*;
 
-module frontend_if (
+module instruction_fetch_stage_if (
     // Inputs
     input  logic        clk,
     input  logic        reset_n,
