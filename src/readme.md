@@ -1,383 +1,401 @@
-# RV32I Single-Cycle RISC-V CPU
+# RV32I Five-Stage Pipelined SoC
 
-This project implements a 32-bit RISC-V CPU in SystemVerilog for educational and FPGA experiments. The current core uses a **single-cycle Harvard architecture**: instruction memory and data memory are separate, and each instruction completes fetch, decode, execution, memory access, and write-back within one clock cycle.
+This project implements a 32-bit, single-issue, in-order RISC-V processor and a small FPGA SoC in SystemVerilog. The original single-cycle core has evolved into a five-stage pipeline with forwarding, load-use interlocks, synchronous local memories, memory-mapped GPIO, and a dynamic BTB+BHT branch predictor.
 
-The top-level module is `riscv_cpu`. It currently exposes only the `sysclk` clock and active-high `reset` inputs. The processor implements commonly used RV32I integer, branch, jump, and load/store instructions. It does not include pipelining, CSRs, interrupts, or multiply/divide extensions.
+The current FPGA target is the Digilent Cmod A7. A Clocking Wizard converts the 12 MHz board clock to a 100 MHz CPU clock. The current design has reached timing closure at 100 MHz, and the button/LED GPIO program has been tested on hardware.
 
-## Design Overview
+## Current Implementation
 
-| Item | Current implementation |
+| Item | Implementation |
 | --- | --- |
-| Instruction set | RV32I subset |
-| Data width | 32 bits |
-| Registers | 32 general-purpose registers; `x0` is always zero |
-| Microarchitecture | Single-cycle, non-pipelined |
-| Memory architecture | Separate instruction ROM and data RAM |
-| Instruction memory | 256 × 32 bits, 1 KiB total |
-| Data memory | 256 × 32 bits, 1 KiB total |
+| ISA | RV32I subset listed below |
+| Datapath | 32 bits |
+| Pipeline | Five stages: IF, ID, EX, MEM, WB |
+| Execution | Single issue, in order |
+| Register file | 32 x 32-bit registers; `x0` is always zero |
+| Memory architecture | Harvard instruction and data interfaces |
+| Instruction memory | 8 KiB synchronous ROM with ready/valid flow control |
+| Data memory | Synchronous local RAM behind the SoC data/MMIO interconnect |
+| Branch predictor | 8-entry direct-mapped BTB and 32-entry 2-bit BHT |
 | Reset vector | `0x0000_0000` |
 | Endianness | Little-endian |
-| FPGA constraints | Digilent Cmod A7 with a 12 MHz onboard clock |
+| FPGA clock | 100 MHz from a 12 MHz Cmod A7 input |
 
-### Datapath
+## System Hierarchy
+
+```text
+cmod_a7_top
+`-- riscv_soc
+    |-- riscv_cpu
+    |   |-- frontend_if
+    |   |-- decode_stage_id
+    |   |-- execute_stage_ex
+    |   |-- memory_stage_mem
+    |   |-- writeback_stage_wb
+    |   |-- hazard
+    |   `-- pipeline_registers
+    |-- imem_if
+    |-- address_resolver_mem
+    |-- dmem_mem
+    `-- gpio
+```
+
+- `cmod_a7_top` contains board-specific clock, reset, pin, and input-synchronization logic.
+- `riscv_soc` contains the CPU, local memories, address decoding, and peripherals.
+- `riscv_cpu` contains only the processor pipeline and exposes instruction and data interfaces.
+
+## Pipeline
 
 ```mermaid
 flowchart LR
-    PC[PC] --> IMEM[Instruction Memory]
-    IMEM --> DEC[Decode]
-    DEC --> CTRL[Control]
-    DEC --> REG[Register File]
-    DEC --> IMM[Immediate Generator]
-
-    REG --> AMUX[ALU A MUX]
-    REG --> BMUX[ALU B MUX]
-    IMM --> BMUX
-    PC --> AMUX
-
-    AMUX --> CMP[Comparator]
-    BMUX --> CMP
-    AMUX --> ALU[ALU]
-    BMUX --> ALU
-
-    CMP --> BR[Branch Decision]
-    BR --> PCMUX[Next-PC MUX]
-    IMM --> PCMUX
-    ALU --> PCMUX
-    PCMUX --> PC
-
-    ALU --> LSU[Load/Store Unit]
-    REG --> LSU
-    LSU <--> DMEM[Data Memory]
-    LSU --> WBMUX[Write-back MUX]
-    ALU --> WBMUX
-    PC --> WBMUX
-    WBMUX --> REG
-
-    CTRL -. control signals .-> AMUX
-    CTRL -. control signals .-> BMUX
-    CTRL -. control signals .-> ALU
-    CTRL -. control signals .-> LSU
-    CTRL -. control signals .-> PCMUX
-    CTRL -. control signals .-> WBMUX
+    IF[IF<br/>PC, predictor, IMEM handshake] --> IFID[IF/ID]
+    IFID --> ID[ID<br/>decode, control, register read] --> IDEX[ID/EX]
+    IDEX --> EX[EX<br/>forward, ALU, compare, resolve] --> EXMEM[EX/MEM]
+    EXMEM --> MEM[MEM<br/>data request, redirect] --> MEMWB[MEM/WB]
+    MEMWB --> WB[WB<br/>load format, write-back]
+    EXMEM -. MEM-to-EX .-> EX
+    WB -. WB-to-EX .-> EX
+    WB -. WB-to-ID .-> ID
+    MEM -. redirect and predictor feedback .-> IF
 ```
 
-A normal instruction follows this sequence:
+### IF
 
-1. `pc` supplies the current address, and `imem` reads the 32-bit instruction combinationally.
-2. `decode` splits the instruction into fields, `control` generates datapath control signals, and `imm_gen` constructs the immediate value.
-3. `registers` reads `rs1` and `rs2` combinationally. Multiplexers select the ALU and comparator operands.
-4. `alu` performs the arithmetic, logical, or address calculation. For branch instructions, `comparator` and `branch` determine whether the branch is taken.
-5. Load and store instructions access `dmem` through `lsu`. The ALU result, loaded data, or `PC + 4` is selected and written back to `rd`.
-6. The PC, register-file writes, and data-memory writes are updated on the rising clock edge.
+- Holds the PC and issues an IMEM request.
+- Queries the BTB and BHT in parallel.
+- Selects the predicted target or `PC + 4`.
+- Gives a MEM-stage redirect priority over prediction.
+- Captures the request PC and prediction metadata on `req_valid && req_ready`.
+- Aligns the returned instruction with its PC, predicted PC, and predicted direction.
 
-The single-cycle architecture does not have pipeline hazards. However, its combinational path extends from instruction fetch through execution, memory access, and write-back, so the longest combinational path limits the maximum clock frequency.
+### ID
 
-## Module Descriptions
+- Extracts instruction fields and generates the immediate.
+- Generates ALU, memory, write-back, and control-flow controls.
+- Reads `rs1` and `rs2`.
+- Tracks whether each instruction really uses each source register.
+- Implements WB-to-ID bypass in the register file.
 
-### `riscv_pkg.sv` — Shared Types and Instruction Constants
+### EX
 
-Defines the parameters, enumerations, and instruction encodings shared by the CPU:
+- Selects MEM/WB forwarded operands.
+- Performs ALU, address, shift, and comparison operations.
+- Evaluates conditional branches.
+- Detects direction misprediction with a one-bit comparison.
+- Computes the recovery PC and BTB training target.
+- Registers redirect and predictor feedback into EX/MEM.
 
-- `XLEN=32` and reset address `PC_START=0`.
-- Immediate formats `IMM_I/S/B/U/J`.
-- ALU operations and ALU operand selections.
-- Write-back and next-PC selections.
-- Memory access widths and signedness.
-- RV32I opcode, `funct3`, and `funct7` constants.
+### MEM
 
-This package must be compiled before any RTL module that imports it. Although `XLEN` is defined as a parameter, most of the datapath is explicitly declared as 32 bits, so the current design is effectively fixed to RV32.
+- Generates the external load/store request.
+- Produces store byte strobes and lane-aligned data.
+- Reports load/store misalignment.
+- Applies the redirect registered in EX/MEM.
+- Sends resolved branch/JAL information back to the predictor.
 
-### `cpu_top.sv` — CPU Top Level and Datapath Integration
+### WB
 
-The module is named `riscv_cpu`. It instantiates and connects all submodules and implements the main datapath multiplexers:
+- Receives synchronous memory or MMIO read data.
+- Selects and extends bytes, halfwords, or words.
+- Selects the ALU result, load result, or `PC + 4`.
+- Writes `rd` only for a valid pipeline entry.
 
-- Selects either `rs1` or the current PC as ALU operand A according to `alu_src_a_sel`.
-- Selects either `rs2` or the immediate as ALU operand B according to `alu_src_b_sel`.
-- Selects the ALU result, memory data, `PC + 4`, or comparison result for register write-back.
-- Selects the sequential address, conditional branch target, JAL target, JALR target, or trap address as the next PC.
+## Pipeline Control and Hazards
 
-The external `reset` input is active high. The top level inverts it to create the internal active-low synchronous reset signal `reset_n`. It also contains a `cycle_counter` used only for debugging.
+Every pipeline boundary contains a `valid` bit. An entry with `valid = 0` is a bubble, regardless of its payload.
 
-The top level combines illegal-instruction, misaligned-load, and misaligned-store conditions into an `exception` signal. The current implementation does not connect `exception` to the trap path and does not use it to suppress register or memory writes.
+`pipeline_registers` owns all four boundaries and defines control priority:
 
-### `pc_if.sv` — Program Counter (IF Stage)
+- Reset clears IF/ID, ID/EX, EX/MEM, and MEM/WB.
+- A load-use stall holds IF/ID and inserts a bubble into ID/EX.
+- A MEM-stage redirect invalidates younger IF/ID, ID/EX, and next EX/MEM entries.
+- Redirect has priority over a simultaneous stall.
 
-Stores the current instruction address:
+### Forwarding
 
-- Updates `current_pc` with `next_pc` on each rising clock edge.
-- Synchronously resets to `PC_START` on a rising edge when `reset_n` is low.
-- Advances by four bytes during normal sequential execution.
-
-### `imem_if.sv` — Instruction Memory (IF Stage)
-
-Implements a `256 × 32-bit` combinational-read ROM:
-
-- Loads machine code with `$readmemh("asm.mem", instr_rom)` during simulation or memory initialization.
-- Uses `addr[31:2]` as the word index and ignores the lowest two address bits.
-- Has a nominal address range of `0x0000_0000` through `0x0000_03ff`.
-
-The `asm.mem` path is relative to the simulator's working directory, which is not necessarily the RTL source directory.
-
-### `branch_predict_if.sv` — Branch Predictor (IF Stage)
-
-Implements the current static branch prediction policy. It always predicts that control flow will continue at `PC + 4` and passes the predicted direction and address into the pipeline.
-
-### `decode_id.sv` — Instruction Field Decoder (ID Stage)
-
-Directly extracts the following fields from the 32-bit instruction:
-
-- `opcode`
-- `funct3`
-- `funct7`
-- `rs1`
-- `rs2`
-- `rd`
-
-It also selects the immediate format based on the opcode. This module only separates instruction fields and classifies the immediate; `control` is responsible for checking whether an instruction encoding is valid.
-
-### `control_id.sv` — Main Control Unit (ID Stage)
-
-Generates the single-cycle datapath control signals from `opcode`, `funct3`, and `funct7`:
-
-- Register write enable `reg_we`.
-- Memory read and write intent signals `mem_re` and `mem_we`.
-- ALU operation and ALU operand selections.
-- Register write-back source.
-- Next-PC selection.
-- Load/store width and signedness.
-- Illegal-instruction flag `illegal_instr`.
-
-`mem_re` is not currently connected to `dmem` because the data RAM uses asynchronous reads. It only represents the controller's intent to perform a read. The `debug` signal is asserted for load instructions and preserved with a synthesis attribute for observation.
-
-ALU opcode decode is combined with other control signals
-
-### `registers_id_wb.sv` — General-Purpose Register File (ID/WB Stages)
-
-Implements 32 general-purpose 32-bit registers:
-
-- Two combinational read ports for `rs1` and `rs2`.
-- One rising-edge write port for `rd`.
-- Reads from `x0` always return zero.
-- Writes to `x0` are ignored.
-- All registers are synchronously cleared on reset.
-
-### `imm_gen_id.sv` — Immediate Generator (ID Stage)
-
-Reconstructs and extends the instruction immediate according to the format selected by `decode`:
-
-- I-, S-, B-, and J-type immediates are sign-extended.
-- U-type immediates occupy the upper 20 bits, with the lower 12 bits set to zero.
-- B- and J-type immediates have a zero least-significant bit to form a two-byte-aligned offset.
-
-### `comparator_ex.sv` — Operand Comparator (EX Stage)
-
-Produces three comparison results in parallel:
-
-- `eq`: equality comparison.
-- `less_signed`: signed less-than comparison.
-- `less_unsigned`: unsigned less-than comparison.
-
-These results are shared by SLT/SLTU ALU operations and conditional branch decisions.
-
-### `branch_ex.sv` — Conditional Branch Decision (EX Stage)
-
-Generates the `take` signal from the branch instruction's `funct3` and the comparator outputs:
-
-| Instruction | Branch condition |
+| Path | Values |
 | --- | --- |
-| `BEQ` | `rs1 == rs2` |
-| `BNE` | `rs1 != rs2` |
-| `BLT` | signed `rs1 < rs2` |
-| `BGE` | signed `rs1 >= rs2` |
-| `BLTU` | unsigned `rs1 < rs2` |
-| `BGEU` | unsigned `rs1 >= rs2` |
+| MEM to EX | ALU result or `PC + 4` |
+| WB to EX | ALU result or `PC + 4` |
+| WB to ID | Final write-back value, including load data |
 
-When the branch is taken, the next PC is `current_pc + imm`; otherwise, it is `current_pc + 4`.
+MEM forwarding has priority over WB forwarding. `EX/MEM.forward_data` is preselected between the ALU result and `PC + 4`, avoiding another write-back-source mux in the critical forwarding path.
 
-### `alu_ex.sv` — Arithmetic Logic Unit (EX Stage)
+### Load-Use Stall
 
-Supports the following operations:
+DMEM has a one-cycle synchronous read latency. A dependent instruction is held in ID while the load is in EX and again while it is in MEM. The load reaches WB, where WB-to-ID bypass supplies the final value before the consumer enters EX.
 
-- Addition and subtraction.
-- AND, OR, and XOR.
-- Logical left shift, logical right shift, and arithmetic right shift.
-- Signed and unsigned less-than comparisons.
-- Copying operand B for LUI.
+This two-cycle policy avoids a long DMEM-to-WB-to-EX path and was selected to improve timing.
 
-Shift operations use only the lowest five bits of operand B, matching the RV32 shift range.
+## Branch Predictor
 
-### `lsu_mem.sv` — Load/Store Unit (MEM Stage)
+### BTB
 
-Sits between the CPU datapath and `dmem` and handles accesses of different widths:
+- 8 direct-mapped entries.
+- Index: `PC[4:2]`.
+- Tag: `PC[12:5]`, assuming execution remains inside the 8 KiB IMEM.
+- Stores valid, tag, 32-bit target, and control-flow type.
+- A taken conditional branch allocates an entry.
+- JAL allocates an entry whenever it resolves.
+- JALR is not predicted.
 
-- Uses the low address bits to select the target byte or halfword.
-- Generates the four-bit byte write enable `wstrb` for stores.
-- Moves store data into the correct byte lanes.
-- Selects the requested byte or halfword for loads and applies sign extension or zero extension.
-- Checks the natural alignment of halfword and word accesses and generates load/store misalignment flags.
+A JAL hit predicts taken unconditionally. A conditional hit uses the BHT. A miss predicts not-taken and selects `PC + 4`.
 
-Data is arranged in little-endian order. For example, byte offset zero maps to the lowest eight bits of a 32-bit memory word.
+### BHT
 
-### `dmem_mem.sv` — Data Memory (MEM Stage)
+- 32 entries indexed by `PC[6:2]`.
+- Each entry is a 2-bit saturating counter.
+- Reset state is weakly not-taken (`01`).
+- The most-significant bit is the predicted direction.
+- Every valid conditional branch trains the table.
 
-Implements a `256 × 32-bit` data RAM:
+```text
+00 strongly not-taken
+01 weakly not-taken
+10 weakly taken
+11 strongly taken
+```
 
-- Reads are combinational.
-- Writes occur on the rising clock edge.
-- `wstrb[3:0]` independently controls the four byte lanes, enabling `SB`, `SH`, and `SW`.
-- The array is initialized to zero in its declaration but has no runtime reset port.
-- The nominal address range is `0x0000_0000` through `0x0000_03ff`.
+### Recovery
 
-Because reads are asynchronous, FPGA tools may not infer a synchronous block RAM for this memory.
+Conditional misprediction is detected with:
 
-### `cpu_tb.sv` — Basic Simulation Testbench
+```systemverilog
+predicted_taken != actual_taken
+```
 
-Instantiates `riscv_cpu` and generates:
+Direct branch and JAL targets are assumed stable for a matching BTB tag, removing a wide target-address comparison from the EX critical path. JALR remains unpredicted and always redirects to `(rs1 + imm) & ~1`.
 
-- A 10 ns simulation clock period, equivalent to 100 MHz.
-- An active-high reset lasting for one rising clock edge.
-- Automatic simulation termination after 40 clock cycles.
+Resolution occurs in EX, but the result is registered and applied in MEM. A redirect therefore flushes all younger instructions in IF, ID, and EX. The redirecting JAL/JALR itself continues and can write `PC + 4` to `rd`.
 
-The testbench does not automatically check register or memory results. It is currently intended mainly for waveform-based inspection.
+## Core Interfaces
+
+### Instruction Interface
+
+| Signal | Direction | Meaning |
+| --- | --- | --- |
+| `imem_req_valid_if` | CPU to memory | Request valid |
+| `imem_req_ready_if` | Memory to CPU | Request accepted |
+| `imem_req_addr_if` | CPU to memory | Instruction address |
+| `imem_resp_valid_if` | Memory to CPU | Response valid |
+| `imem_resp_ready_if` | CPU to memory | Response accepted |
+| `imem_resp_data_if` | Memory to CPU | Instruction data |
+| `imem_flush_if` | CPU to memory | Discard an outstanding wrong-path response |
+
+`imem_if` holds `resp_valid` under backpressure. It can accept a request when no response is pending or when the current response is accepted in the same cycle.
+
+### Data Interface
+
+| Signal | Direction | Meaning |
+| --- | --- | --- |
+| `data_req_valid_mem` | CPU to SoC | Load/store request valid |
+| `data_req_write_mem` | CPU to SoC | Write when 1, read when 0 |
+| `data_req_addr_mem` | CPU to SoC | Byte address |
+| `data_req_wdata_mem` | CPU to SoC | Lane-aligned store data |
+| `data_req_wstrb_mem` | CPU to SoC | Byte write strobes |
+| `data_resp_rdata_wb` | SoC to CPU | Read result returned in WB |
+
+The data interface currently assumes the fixed read latency used by the local RAM and GPIO. It does not yet support data-side request-ready or response-valid backpressure.
+
+## Memory Map
+
+| Address | Device | Description |
+| --- | --- | --- |
+| `0x0000_0000`–`0x0000_1FFF` | IMEM | 8 KiB instruction ROM |
+| `0x1000_0000`–`0x1FFF_FFFF` | DMEM decode region | Routed to local RAM |
+| `0x4000_0000` | GPIO LED | Bit 0 drives `led[0]` |
+| `0x4000_0004` | GPIO button | Bit 0 reports synchronized `btn[1]` |
+
+The DMEM array is declared as 4096 words, but the current implementation indexes it with `addr[9:2]`. Only the low 1 KiB is uniquely addressed; higher addresses in the decoded DMEM region alias those locations.
+
+### Local Memory Behavior
+
+- IMEM is a 2048 x 32-bit synchronous ROM with `rom_style = block`.
+- IMEM is initialized using `$readmemh(asm.mem, instr_rom)`.
+- DMEM uses synchronous reads and clocked byte-lane writes.
+- Load byte/halfword selection and extension occur in WB.
+- Store byte/halfword placement occurs in MEM.
+
+The `asm.mem` path is relative to the simulation or synthesis working directory. In Vivado, add `build/asm.mem` as a memory initialization source.
+
+## GPIO and FPGA Wrapper
+
+- `0x4000_0000` is a 32-bit LED register; bit 0 drives the board LED.
+- `0x4000_0004` returns the push-button value in bit 0.
+- `cmod_a7_top` synchronizes `btn[1]` with two flip-flops.
+- The synchronizer handles metastability but does not debounce the button.
+- `clk_wiz_0` generates 100 MHz from the 12 MHz `sysclk`.
+- External `reset` is active high; the internal pipeline reset is active low.
 
 ## Supported Instructions
 
 | Category | Instructions |
 | --- | --- |
-| Register arithmetic and logic | `ADD` `SUB` `SLL` `SLT` `SLTU` `XOR` `SRL` `SRA` `OR` `AND` |
-| Immediate arithmetic and logic | `ADDI` `SLTI` `SLTIU` `XORI` `ORI` `ANDI` `SLLI` `SRLI` `SRAI` |
-| Upper-immediate operations | `LUI` `AUIPC` |
-| Conditional branches | `BEQ` `BNE` `BLT` `BGE` `BLTU` `BGEU` |
-| Jumps | `JAL` `JALR` |
-| Loads | `LB` `LH` `LW` `LBU` `LHU` |
-| Stores | `SB` `SH` `SW` |
+| Register arithmetic/logic | `ADD SUB SLL SLT SLTU XOR SRL SRA OR AND` |
+| Immediate arithmetic/logic | `ADDI SLTI SLTIU XORI ORI ANDI SLLI SRLI SRAI` |
+| Upper immediate | `LUI AUIPC` |
+| Conditional branch | `BEQ BNE BLT BGE BLTU BGEU` |
+| Jump | `JAL JALR` |
+| Load | `LB LH LW LBU LHU` |
+| Store | `SB SH SW` |
 
-The design does not implement `FENCE`, `ECALL`, `EBREAK`, CSR instructions, the privileged architecture, or the M/A/F/D/C extensions.
+`FENCE`, system/CSR instructions, privilege modes, interrupts, and the M/A/F/D/C extensions are not implemented.
 
-## PC and Write-Back Selection
+## Module Reference
 
-### Next-PC Selection
+### Board and SoC
 
-| `pc_sel` | Next address |
-| --- | --- |
-| `PC_NEXT` | `PC + 4` |
-| `PC_BRANCH` | `PC + imm` when taken; otherwise `PC + 4` |
-| `PC_JAL` | ALU result `PC + imm` |
-| `PC_JALR` | ALU result `rs1 + imm`, with bit zero cleared |
-| `PC_TRAP` | `0x0000_0000`; the current controller never selects it |
+| File | Module | Responsibility |
+| --- | --- | --- |
+| `cmod_a7_top.sv` | `cmod_a7_top` | Clocking Wizard, reset, button synchronizer, and board pins |
+| `riscv_soc/riscv_pkg.sv` | `riscv_pkg` | ISA constants, control enums, pipeline structures, MMIO and predictor types |
+| `riscv_soc/riscv_soc.sv` | `riscv_soc` | CPU, memory, address decoder, GPIO, and read-data mux integration |
+| `riscv_soc/imem_if.sv` | `imem_if` | Synchronous IMEM and ready/valid response holding |
+| `riscv_soc/dmem_mem.sv` | `dmem_mem` | Synchronous RAM with byte write strobes |
+| `riscv_soc/address_resolver_mem.sv` | `address_resolver_mem` | DMEM/GPIO decode and registered WB source selection |
+| `riscv_soc/gpio.sv` | `gpio` | LED register and button readback |
 
-### Register Write-Back Selection
+### CPU Stages and Control
 
-| `wb_sel` | Write-back data |
-| --- | --- |
-| `WB_ALU` | ALU result |
-| `WB_MEM` | Load data processed by the LSU |
-| `WB_PC` | `PC + 4`, used by JAL and JALR to save the return address |
-| `WB_CMP` | Equality result; no current instruction uses this source |
+Paths in the following two tables are relative to `riscv_soc/`.
 
-## Program Build and Loading
+| File | Module | Responsibility |
+| --- | --- | --- |
+| `cpu_core/cpu_core.sv` | `riscv_cpu` | Five-stage core integration and external memory interfaces |
+| `cpu_core/if/frontend_if.sv` | `frontend_if` | PC, predictor, IMEM handshake, redirect, and IF/ID payload |
+| `cpu_core/id/decode_stage_id.sv` | `decode_stage_id` | Decoder, control, immediate generation, register file, and ID/EX payload |
+| `cpu_core/ex/execute_stage_ex.sv` | `execute_stage_ex` | Forwarding, comparator, ALU, resolver, and EX/MEM payload |
+| `cpu_core/mem/memory_stage_mem.sv` | `memory_stage_mem` | Data request, store format, alignment, redirect, and MEM/WB payload |
+| `cpu_core/wb/writeback_stage_wb.sv` | `writeback_stage_wb` | Load format, write-back selection, and WB forwarding |
+| `cpu_core/pipeline_registers.sv` | `pipeline_registers` | Pipeline boundary registers and reset/stall/flush priority |
+| `cpu_core/hazard.sv` | `hazard` | Forwarding selection and load-use detection |
 
-### Required Tools
+### CPU Leaf Modules
+
+| File | Module | Responsibility |
+| --- | --- | --- |
+| `cpu_core/if/pc_if.sv` | `pc_if` | Program-counter register |
+| `cpu_core/if/branch_predict_if.sv` | `branch_predict_if` | BTB/BHT lookup and training |
+| `cpu_core/id/decoder_id.sv` | `decoder_id` | Instruction field extraction and immediate classification |
+| `cpu_core/id/control_id.sv` | `control_id` | Instruction control decode and illegal-instruction flag |
+| `cpu_core/id/registers_id.sv` | `registers_id_wb` | Register file and WB-to-ID bypass |
+| `cpu_core/id/imm_gen_id.sv` | `imm_gen_id` | RV32I immediate reconstruction |
+| `cpu_core/ex/comparator_ex.sv` | `comparator_ex` | Equality and signed/unsigned comparisons |
+| `cpu_core/ex/branch_ex.sv` | `branch_ex` | Conditional branch decision |
+| `cpu_core/ex/alu_ex.sv` | `alu_ex` | Arithmetic, logic, shift, and comparison operations |
+| `cpu_core/ex/control_flow_resolver_ex.sv` | `control_flow_resolver_ex` | Redirect, recovery PC, and predictor feedback generation |
+| `cpu_core/mem/lsu_mem.sv` | `lsu_mem` | Store formatting and alignment checks |
+| `cpu_core/wb/lsu_wb.sv` | `lsu_wb` | Load selection and extension |
+
+## Building Programs
+
+Required tools:
 
 - GNU Make.
-- A RISC-V GNU Toolchain using the `riscv64-unknown-elf-` command prefix.
-- Vivado or another simulator with SystemVerilog support.
+- A RISC-V GNU toolchain using the `riscv64-unknown-elf-` prefix.
+- Vivado or another SystemVerilog tool.
 
-The Makefile uses `-march=rv32i -mabi=ilp32 -nostdlib`. The entry point is `_start`, placed at address `0x0000_0000`.
-
-### Generating Machine Code
-
-Run the following command from the `src` directory:
+Build from `src`:
 
 ```sh
-make PRGM=sum
+make PRGM=branch_test
 ```
 
-`PRGM` is the filename under `asm/` without the `.s` extension. The build products are written to `build/`:
+The Makefile uses `-march=rv32i -mabi=ilp32 -nostdlib`, places `_start` at `0x0000_0000`, and creates:
 
 ```text
-build/asm.elf   ELF executable
-build/asm.mem   hexadecimal file for $readmemh
-build/asm.dump  disassembly listing
+build/asm.elf   linked executable
+build/asm.mem   Verilog-format instruction image
+build/asm.dump  disassembly
 ```
 
-The Makefile also defines an optional `build/asm.bin` raw binary target, but the default `all` target does not generate it.
+## Simulation and Tests
 
-`imem_if.sv` always reads a file named `asm.mem`, while the Makefile generates `build/asm.mem`. Before simulation, copy it into the simulator's working directory or add `build/asm.mem` to Vivado as a memory initialization file. For example, when running the simulator from the source directory:
+`cpu_tb.sv` instantiates `riscv_soc`, generates a 100 MHz clock, applies reset, and stops after 300 cycles. It is primarily a waveform testbench; assembly programs perform most architectural checks.
 
-```powershell
-Copy-Item .\build\asm.mem .\asm.mem
-```
+Compile `riscv_soc/riscv_pkg.sv` before modules that import it. Then compile CPU modules, SoC devices, `riscv_soc/riscv_soc.sv`, and finally the selected top/testbench.
 
-### Compilation Order
-
-When configuring a simulator manually:
-
-1. Compile `riscv_pkg.sv` first.
-2. Compile the submodules.
-3. Compile `cpu_top.sv`.
-4. Compile `cpu_tb.sv` last and select `cpu_tb` as the simulation top.
-
-`script.tcl` recursively adds the signals below `uut` to the waveform window. `script_lite.tcl` adds only key signals such as the clock, reset, cycle counter, register file, data RAM, and current instruction. Both scripts restart the simulation and request a `1 us` run.
-
-## Assembly Examples
-
-| File | Purpose and expected result |
+| Program | Main coverage |
 | --- | --- |
-| `asm/asm.s` | Tests word, halfword, and byte loads/stores, including signed and unsigned byte extension |
-| `asm/for.s` | Calculates `1 + 2 + ... + 10`; `x1 = 55` at completion |
-| `asm/sum.s` | Sums `{1,2,3,4,5}` in data RAM; `a0 = 15` at completion |
-| `asm/memcpy.s` | Copies six words from address 0 to address 100 and checks each result |
-| `asm/findmax.s` | Finds the maximum of six negative values; `x6 = -22` at completion |
+| `asm/asm.s` | Basic byte, halfword, and word accesses |
+| `asm/branch_test.s` | Branch conditions, flushes, backward-loop BHT training, and JAL BTB behavior |
+| `asm/dmem_test.s` | Synchronous DMEM, widths, sign extension, strobes, and address resolution |
+| `asm/forward_test.s` | Basic forwarding |
+| `asm/forward_test2.s` | Forwarding priority, WB-to-ID bypass, load-use stalls, branch dependencies, JAL/JALR |
+| `asm/for.s` | Repeated not-taken BHT training and JAL loop prediction |
+| `asm/findmax.s` | Mixed branch-direction transitions with memory traffic |
+| `asm/sum.s` | Function call, memory loop, and return |
+| `asm/memcpy.s` | Memory copy, function call, result checks, and return |
+| `asm/gpio_test.s` | Toggle the LED once per button press/release cycle |
 
-The example programs usually stop useful execution by looping forever at a `pass`, `fail`, or `done` label. Inspect the PC, register file, and data RAM waveforms to determine the result.
+`branch_test.s`, `dmem_test.s`, and `forward_test2.s` use `x31` as:
 
-## FPGA Constraints
+```text
+0x0000_0000 running
+0x0000_0001 pass
+0xFFFF_FFFF fail
+```
 
-`cmod_a7.xdc` is based on the Digilent Cmod A7 constraints:
+## Current Limitations
 
-- `sysclk` is connected to pin L17 with a period constraint of `83.33 ns`, or approximately 12 MHz.
-- `reset` is connected to button pin A18 and is treated as active high by the top-level module.
+- Exceptions are observed internally but are not connected to a complete trap/CSR mechanism.
+- Misaligned accesses do not yet guarantee side-effect suppression.
+- The data interface cannot wait for variable-latency devices.
+- JALR is not predicted; there is no return-address stack.
+- There are no caches, global-history predictor, or predictor performance counters.
+- The BTB tag assumes execution remains in the current 8 KiB IMEM.
+- IMEM and DMEM do not raise out-of-range access faults.
+- Only 1 KiB of the current DMEM is uniquely indexed.
+- The button is synchronized but not debounced.
+- Clock Wizard `locked` is not used to qualify reset release.
+- The testbench is not a full instruction-level self-checking environment.
 
-The constraint for `btn[1]` is still enabled, but the `riscv_cpu` top level does not have that port. If Vivado reports a missing-port error, comment out that constraint or add the corresponding top-level port.
-
-## Current Limitations and Implementation Notes
-
-- This is a single-cycle CPU with no pipeline, stalls, forwarding, branch prediction, or caches.
-- `exception` is currently only an internal observation signal. Illegal instructions and misaligned accesses do not enter a trap handler or consistently suppress side effects. A misaligned store may still write data RAM.
-- Illegal-instruction checking is incomplete. For example, invalid branch `funct3` values and nonstandard JALR `funct3` values are not explicitly rejected by the controller.
-- For some invalid encodings under a recognized opcode, the controller may leave `reg_we` or `mem_we` asserted. `illegal_instr` should therefore not be treated as complete side-effect protection.
-- `PC_TRAP` and `WB_CMP` are defined but are not used by the current control paths.
-- The controller generates `mem_re`, but the asynchronous-read data RAM has no read-enable port.
-- The LSU does not assign the unused `load_data` output on every store path. Strict synthesis or lint tools may report an inferred combinational latch.
-- Instruction and data memories have no address-range checking. Accesses outside their 1 KiB ranges have undefined behavior.
-- The top level has no UART, GPIO, bus interface, memory-mapped peripherals, or execution-status output. FPGA debugging normally requires an ILA or additional debug ports.
-- The testbench provides only stimulus. It has no assertions, result checking, timeout diagnosis, or instruction-level self-checking.
-
-## File Structure
+## Directory Structure
 
 ```text
 src/
-├── riscv_pkg.sv       # Shared types, enumerations, and RV32I encodings
-├── cpu_top.sv         # riscv_cpu top level and complete datapath
-├── pc_if.sv                    # IF: program counter
-├── imem_if.sv                  # IF: instruction ROM
-├── branch_predict_if.sv        # IF: branch predictor
-├── decode_id.sv                # ID: instruction field decoder
-├── control_id.sv               # ID: main control unit
-├── registers_id_wb.sv          # ID/WB: general-purpose register file
-├── imm_gen_id.sv               # ID: immediate generator
-├── comparator_ex.sv            # EX: signed and unsigned comparator
-├── branch_ex.sv                # EX: conditional branch decision
-├── control_flow_resolver_ex.sv # EX: reserved control-flow resolver
-├── alu_ex.sv                   # EX: arithmetic logic unit
-├── lsu_mem.sv                  # MEM: load/store formatting and alignment checks
-├── dmem_mem.sv                 # MEM: data RAM
-├── cpu_tb.sv          # Basic simulation testbench
-├── asm/               # RV32I assembly test programs
-├── build/             # Program files generated by the Makefile
-├── Makefile           # Assembly, linking, conversion, and disassembly
-├── script.tcl         # Full waveform configuration script
-├── script_lite.tcl    # Reduced waveform configuration script
-└── cmod_a7.xdc        # Cmod A7 pin and clock constraints
+|-- cmod_a7_top.sv
+|-- cmod_a7.xdc
+|-- cpu_tb.sv
+|-- Makefile
+|-- script.tcl
+|-- script_lite.tcl
+|-- readme.md
+|-- asm/
+|-- build/
+`-- riscv_soc/
+    |-- riscv_pkg.sv
+    |-- riscv_soc.sv
+    |-- imem_if.sv
+    |-- dmem_mem.sv
+    |-- address_resolver_mem.sv
+    |-- gpio.sv
+    `-- cpu_core/
+        |-- cpu_core.sv
+        |-- pipeline_registers.sv
+        |-- hazard.sv
+        |-- if/
+        |   |-- frontend_if.sv
+        |   |-- branch_predict_if.sv
+        |   `-- pc_if.sv
+        |-- id/
+        |   |-- decode_stage_id.sv
+        |   |-- decoder_id.sv
+        |   |-- control_id.sv
+        |   |-- registers_id.sv
+        |   `-- imm_gen_id.sv
+        |-- ex/
+        |   |-- execute_stage_ex.sv
+        |   |-- alu_ex.sv
+        |   |-- comparator_ex.sv
+        |   |-- branch_ex.sv
+        |   `-- control_flow_resolver_ex.sv
+        |-- mem/
+        |   |-- memory_stage_mem.sv
+        |   `-- lsu_mem.sv
+        `-- wb/
+            |-- writeback_stage_wb.sv
+            `-- lsu_wb.sv
 ```
+
+After moving RTL files, update the Vivado project's explicit source paths and reset synthesis/implementation runs. Vivado does not automatically follow filesystem moves.
