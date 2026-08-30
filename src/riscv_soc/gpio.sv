@@ -42,7 +42,10 @@ end
 always_ff @(posedge clk) begin
     rdata <= 32'd0;
     if(gpio_rden) begin
-        if(gpio_addr == 32'h4000_0004) begin
+        if(gpio_addr == 32'h4000_0000) begin
+            rdata <= led_reg;
+        end
+        else if(gpio_addr == 32'h4000_0004) begin
             rdata <= btn_reg;
         end
     end
