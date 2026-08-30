@@ -27,6 +27,8 @@ module instruction_fetch_stage_if (
     output if_id_reg_t  if_id_reg_d
 );
 
+// BTB feedback signals from MEM stage are used to train BTB and BHT predictor
+
 logic [31:0] current_pc_if;
 logic [31:0] current_pc_imem_if;
 logic [31:0] next_pc_if;

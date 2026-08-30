@@ -10,7 +10,7 @@ module branch_predict_if(
     input logic [31:0] btb_feedback_actual_target, // the actual target PC
     input logic        btb_feedback_taken,
     input logic        btb_feedback_valid,
-    input branch_predict_type_t btb_feedback_predict_type,
+    input branch_predict_type_t btb_feedback_predict_type, // need to distinguish between JAL and conditional branches
 
     // Outputs
     output pc_predict_result_t branch_predict_result
@@ -19,8 +19,6 @@ module branch_predict_if(
 btb_entry_t [BTB_ENTRIES-1:0] btb_table;
 
 logic [BTB_BITS-1:0] branch_update_index;
-assign branch_update_index = btb_feedback_pc[4:2];
-
 logic [7:0] btb_query_tag;
 logic [BTB_BITS-1:0] btb_query_index;
 logic [XLEN-1:0] btb_result_target;
@@ -31,6 +29,7 @@ logic [1:0] bht_table [BHT_ENTRIES-1:0] = '{default: 2'b01}; // initialize all e
 logic [BHT_BITS-1:0] bht_query_index; // index into the BHT
 logic [BHT_BITS-1:0] bht_update_index; // index into the BHT for updates
 
+assign branch_update_index = btb_feedback_pc[4:2];
 assign bht_query_index = current_pc[6:2]; // use bits [6:2] of the current PC to index into the BHT
 assign bht_update_index = btb_feedback_pc[6:2]; // use the same index as BTB for BHT update
 
@@ -52,6 +51,7 @@ always_comb begin
     && btb_table[btb_query_index].valid; // entry is valid and tag matches
 end
 
+// BTB update logic
 always_ff @(posedge clk) begin
     if(!reset_n) begin
         for (int i = 0; i < BTB_ENTRIES; i++) begin
@@ -71,7 +71,7 @@ always_ff @(posedge clk) begin
     end
 end
 
-// BTB update logic
+// BTB predict logic
 always_comb begin
     branch_predict_result.predicted_pc = current_pc + 4;
     branch_predict_result.predict_taken = 1'b0;
