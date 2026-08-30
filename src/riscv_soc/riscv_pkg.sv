@@ -61,6 +61,13 @@ package riscv_pkg;
         ALU_SRC_B_IMM
     } alu_src_b_sel_t;
 
+    typedef enum logic [1:0] {
+        BP_NONE,
+        BP_CONDITIONAL,
+        BP_JAL
+    } branch_predict_type_t;
+
+
     typedef logic [6:0] opcode_t;
     localparam opcode_t OPCODE_LOAD =  7'b0000011;
     localparam opcode_t OPCODE_STORE = 7'b0100011;
@@ -145,6 +152,7 @@ typedef struct packed {
     logic [31:0] instruction;
 
     logic [31:0] predicted_pc; // predicted pc from branch predictor
+    logic predicted_taken; // predicted taken from branch predictor
 } if_id_reg_t;
 
 typedef struct packed {
@@ -179,12 +187,14 @@ typedef struct packed {
     // predicted pc from branch predictor
     // have to be passed to EX stage
     logic [31:0] predicted_pc;
+    logic predicted_taken;
 
 } id_ex_reg_t;
 
 typedef struct packed {
     logic valid;
     // datapath signals
+    logic [31:0] pc; // instruction address, for BTB update
     logic [31:0] pcplus4;
     logic [31:0] alu_result;
     logic [31:0] rs2_data; // for store instruction
@@ -198,6 +208,16 @@ typedef struct packed {
     mem_sign_t memsign;
     wb_sel_t wb_sel;
     logic[31:0] forward_data; // data forwarded from mem to ex stage
+
+    logic redirect_request; // if branch misprediction, redirect pc to correct pc in MEM stage
+    logic [31:0] redirect_request_pc; // correct pc to redirect to in MEM stage
+
+    logic [31:0] predicted_pc; // predicted pc from branch predictor, forward back to branch predictor for BTB training
+    logic predicted_taken;
+    logic actual_taken;
+    logic btb_update_valid;
+    logic [31:0] btb_target_pc;
+    branch_predict_type_t btb_update_type;
 } ex_mem_reg_t;
 
 typedef struct packed {
@@ -238,4 +258,15 @@ typedef enum logic [2:0] {
     MMIO_WB_SEL_GPIO
 } mmio_wb_sel_t;
 
+parameter int BTB_BITS = 3;
+parameter int BTB_ENTRIES = 8;
+parameter int BHT_BITS = 5;
+parameter int BHT_ENTRIES = 32;
+
+typedef struct packed {
+    logic valid;
+    logic [7:0] tag; // 8 entry needs 3 bit, remove lower 2 bits, current addr is 8k -> 13bits, so 8 bits tag
+    logic [XLEN-1:0] target_pc;
+    branch_predict_type_t predict_type;
+} btb_entry_t;
 endpackage

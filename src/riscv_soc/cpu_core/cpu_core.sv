@@ -32,8 +32,10 @@ ex_mem_reg_t ex_mem_reg_d;
 mem_wb_reg_t mem_wb_reg_q;
 mem_wb_reg_t mem_wb_reg_d;
 
-logic redirect_pc_request_ex;
-logic [31:0] redirect_next_pc_ex;
+// logic redirect_pc_request_ex;
+// logic [31:0] redirect_next_pc_ex;
+logic redirect_pc_request_mem;
+logic [31:0] redirect_next_pc_mem;
 logic load_use_stall_if;
 
 rs_forward_mux_sel_t rs1_forward_mux_sel_ex;
@@ -50,16 +52,22 @@ logic load_misalign_except_mem;
 logic store_misalign_except_mem;
 logic exception_core;
 
-frontend_if frontend (
+instruction_fetch_stage_if if_stage (
     // Inputs
     .clk              (clk),
     .reset_n          (reset_n),
     .stall_if           (load_use_stall_if),
-    .redirect_request_ex(redirect_pc_request_ex),
-    .redirect_pc_ex     (redirect_next_pc_ex),
+    .redirect_request_mem(redirect_pc_request_mem),
+    .redirect_pc_mem     (redirect_next_pc_mem),
     .imem_req_ready_if  (imem_req_ready_if),
     .imem_resp_valid_if (imem_resp_valid_if),
     .imem_resp_data_if  (imem_resp_data_if),
+
+    .btb_feedback_pc_mem             (ex_mem_reg_q.pc),
+    .btb_feedback_actual_target_mem  (ex_mem_reg_q.btb_target_pc),
+    .btb_feedback_taken_mem          (ex_mem_reg_q.actual_taken),
+    .btb_feedback_valid_mem          (ex_mem_reg_q.btb_update_valid && ex_mem_reg_q.valid),
+    .btb_feedback_predict_type_mem   (ex_mem_reg_q.btb_update_type),
 
     // Outputs
     .imem_req_valid_if (imem_req_valid_if),
@@ -93,9 +101,9 @@ execute_stage_ex execute_stage (
     .rs2_forward_mux_sel_ex (rs2_forward_mux_sel_ex),
 
     // Outputs
-    .ex_mem_reg_d         (ex_mem_reg_d),
-    .redirect_pc_request_ex(redirect_pc_request_ex),
-    .redirect_next_pc_ex   (redirect_next_pc_ex)
+    .ex_mem_reg_d         (ex_mem_reg_d)
+    // .redirect_pc_request_ex(redirect_pc_request_ex),
+    // .redirect_next_pc_ex   (redirect_next_pc_ex)
 );
 
 memory_stage_mem memory_stage (
@@ -110,7 +118,9 @@ memory_stage_mem memory_stage (
     .data_req_wstrb_mem    (data_req_wstrb_mem),
     .mem_wb_reg_d          (mem_wb_reg_d),
     .load_misalign_except_mem (load_misalign_except_mem),
-    .store_misalign_except_mem(store_misalign_except_mem)
+    .store_misalign_except_mem(store_misalign_except_mem),
+    .redirect_pc_request_mem(redirect_pc_request_mem),
+    .redirect_next_pc_mem   (redirect_next_pc_mem)
 );
 
 writeback_stage_wb writeback_stage (
@@ -159,7 +169,7 @@ pipeline_registers pipeline_regs (
     // Inputs
     .clk             (clk),
     .reset_n         (reset_n),
-    .redirect_request_ex(redirect_pc_request_ex),
+    .redirect_request_mem(redirect_pc_request_mem),
     .load_use_stall_if  (load_use_stall_if),
     .if_id_reg_d     (if_id_reg_d),
     .id_ex_reg_d     (id_ex_reg_d),
@@ -171,6 +181,30 @@ pipeline_registers pipeline_regs (
     .id_ex_reg_q (id_ex_reg_q),
     .ex_mem_reg_q(ex_mem_reg_q),
     .mem_wb_reg_q(mem_wb_reg_q)
+);
+
+logic [63:0] cycle_count;
+logic [31:0] branch_count;
+logic [31:0] branch_miss_count;
+logic [31:0] retired_instr_count;
+logic [31:0] cpu_stall_count;
+
+(* DONT_TOUCH = "yes" *)
+hw_perf_counter hw_perf_counter (
+    // Inputs
+    .clk                (clk),
+    .reset_n            (reset_n),
+    .branch             (id_ex_reg_q.predicted_taken && id_ex_reg_q.valid),
+    .branch_miss        (ex_mem_reg_q.redirect_request && ex_mem_reg_q.valid),
+    .retired_instr      (mem_wb_reg_d.valid),
+    .cpu_stall          (load_use_stall_if || redirect_pc_request_mem),
+
+    // Outputs
+    .cycle_count        (cycle_count),
+    .branch_count       (branch_count),
+    .branch_miss_count  (branch_miss_count),
+    .retired_instr_count(retired_instr_count),
+    .cpu_stall_count    (cpu_stall_count)
 );
 
 assign exception_core = illegal_instr_id ||

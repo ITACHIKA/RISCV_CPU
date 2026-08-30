@@ -11,9 +11,9 @@ module execute_stage_ex (
     input  rs_forward_mux_sel_t   rs2_forward_mux_sel_ex,
 
     // Outputs
-    output ex_mem_reg_t           ex_mem_reg_d,
-    output logic                  redirect_pc_request_ex,
-    output logic [31:0]           redirect_next_pc_ex
+    output ex_mem_reg_t           ex_mem_reg_d
+    // output logic                  redirect_pc_request_ex,
+    // output logic [31:0]           redirect_next_pc_ex
 );
 
 logic [31:0] mem_forward_result_ex;
@@ -26,6 +26,14 @@ logic eq_ex;
 logic less_signed_ex;
 logic less_unsigned_ex;
 logic branch_taken_ex;
+
+logic redirect_pc_request_ex;
+logic [31:0] redirect_next_pc_ex;
+
+logic [31:0] btb_target_pc_ex;
+branch_predict_type_t btb_update_type_ex;
+logic btb_update_valid_ex;
+logic btb_actual_taken_ex;
 
 always_comb begin
     // unique case (ex_mem_reg_q.wb_sel)
@@ -110,7 +118,8 @@ alu_ex alu (
 control_flow_resolver_ex control_flow_resolver (
     // Inputs
     .current_pc        (id_ex_reg_q.pc),
-    .predicted_next_pc (id_ex_reg_q.predicted_pc),
+    .predicted_pc      (id_ex_reg_q.predicted_pc),
+    .predicted_taken   (id_ex_reg_q.predicted_taken),
     .branch_taken      (branch_taken_ex),
     .alu_result        (alu_result_ex),
     .imm               (id_ex_reg_q.imm),
@@ -119,11 +128,16 @@ control_flow_resolver_ex control_flow_resolver (
 
     // Outputs
     .redirect_pc_request(redirect_pc_request_ex),
-    .redirect_next_pc   (redirect_next_pc_ex)
+    .redirect_next_pc   (redirect_next_pc_ex),
+    .btb_target_pc      (btb_target_pc_ex),
+    .btb_update_valid   (btb_update_valid_ex),
+    .btb_update_type    (btb_update_type_ex),
+    .btb_actual_taken   (btb_actual_taken_ex)
 );
 
 always_comb begin
     ex_mem_reg_d            = '0;
+    ex_mem_reg_d.pc         = id_ex_reg_q.pc; // for BTB update in MEM stage
     ex_mem_reg_d.pcplus4    = id_ex_reg_q.pcplus4;
     ex_mem_reg_d.alu_result = alu_result_ex;
     ex_mem_reg_d.rs2_data   = rs2_forward_result_ex;
@@ -135,6 +149,14 @@ always_comb begin
     ex_mem_reg_d.memsign    = id_ex_reg_q.memsign;
     ex_mem_reg_d.wb_sel     = id_ex_reg_q.wb_sel;
     ex_mem_reg_d.forward_data = (id_ex_reg_q.wb_sel == WB_PC) ? id_ex_reg_q.pcplus4 : alu_result_ex;
+    ex_mem_reg_d.predicted_taken = id_ex_reg_q.predicted_taken;
+    ex_mem_reg_d.actual_taken = btb_actual_taken_ex;
+    ex_mem_reg_d.predicted_pc = id_ex_reg_q.predicted_pc;
+    ex_mem_reg_d.redirect_request = redirect_pc_request_ex;
+    ex_mem_reg_d.redirect_request_pc = redirect_next_pc_ex; // redirect to the correct pc in MEM stage to cut critical path WNS
+    ex_mem_reg_d.btb_target_pc = btb_target_pc_ex;
+    ex_mem_reg_d.btb_update_valid = btb_update_valid_ex;
+    ex_mem_reg_d.btb_update_type = btb_update_type_ex;
     ex_mem_reg_d.valid      = id_ex_reg_q.valid;
 end
 

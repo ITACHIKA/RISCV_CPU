@@ -127,6 +127,7 @@ always_comb begin
     id_ex_reg_d.wb_sel        = wb_sel_id;
     id_ex_reg_d.pc_sel        = pc_sel_id;
     id_ex_reg_d.predicted_pc  = if_id_reg_q.predicted_pc;
+    id_ex_reg_d.predicted_taken = if_id_reg_q.predicted_taken;
     id_ex_reg_d.funct3        = funct3_id;
     id_ex_reg_d.valid         = if_id_reg_q.valid;
 end

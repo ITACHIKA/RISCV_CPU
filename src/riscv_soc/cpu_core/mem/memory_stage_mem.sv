@@ -14,7 +14,10 @@ module memory_stage_mem (
     output logic [3:0]  data_req_wstrb_mem,
     output mem_wb_reg_t mem_wb_reg_d,
     output logic        load_misalign_except_mem,
-    output logic        store_misalign_except_mem
+    output logic        store_misalign_except_mem,
+
+    output logic                  redirect_pc_request_mem,
+    output logic [31:0]           redirect_next_pc_mem
 );
 
 logic mem_read_mem;
@@ -27,6 +30,9 @@ assign data_req_write_mem  = mem_write_mem;
 assign data_req_addr_mem   = ex_mem_reg_q.alu_result;
 
 // if data_req_valid is high and data_req_write is low, indicates read, so no need for separate data_req_read signal.
+
+assign redirect_pc_request_mem = ex_mem_reg_q.redirect_request && ex_mem_reg_q.valid;
+assign redirect_next_pc_mem = ex_mem_reg_q.redirect_request_pc;
 
 lsu_mem lsu_mem (
     // Inputs
