@@ -23,14 +23,15 @@ always #5 clk = ~clk;
 initial begin
     reset=1;
     btn=2'b00;
-    repeat (1) @(posedge clk);
-    reset=0;
+    repeat (2) @(posedge clk);
+    @(negedge clk);
+    reset = 0;
 end
 
 initial begin
     @(posedge reset);
 
-    repeat (300) @(posedge clk);
+    repeat (50000) @(posedge clk);
 
     $finish;
 end

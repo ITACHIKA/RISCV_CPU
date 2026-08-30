@@ -183,6 +183,30 @@ pipeline_registers pipeline_regs (
     .mem_wb_reg_q(mem_wb_reg_q)
 );
 
+logic [63:0] cycle_count;
+logic [31:0] branch_count;
+logic [31:0] branch_miss_count;
+logic [31:0] retired_instr_count;
+logic [31:0] cpu_stall_count;
+
+(* DONT_TOUCH = "yes" *)
+hw_perf_counter hw_perf_counter (
+    // Inputs
+    .clk                (clk),
+    .reset_n            (reset_n),
+    .branch             (id_ex_reg_q.predicted_taken && id_ex_reg_q.valid),
+    .branch_miss        (ex_mem_reg_q.redirect_request && ex_mem_reg_q.valid),
+    .retired_instr      (mem_wb_reg_d.valid),
+    .cpu_stall          (load_use_stall_if || redirect_pc_request_mem),
+
+    // Outputs
+    .cycle_count        (cycle_count),
+    .branch_count       (branch_count),
+    .branch_miss_count  (branch_miss_count),
+    .retired_instr_count(retired_instr_count),
+    .cpu_stall_count    (cpu_stall_count)
+);
+
 assign exception_core = illegal_instr_id ||
                         load_misalign_except_mem ||
                         store_misalign_except_mem;

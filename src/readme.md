@@ -27,7 +27,7 @@ The current FPGA target is the Digilent Cmod A7. A Clocking Wizard converts the 
 cmod_a7_top
 `-- riscv_soc
     |-- riscv_cpu
-    |   |-- frontend_if
+    |   |-- instruction_fetch_stage_if
     |   |-- decode_stage_id
     |   |-- execute_stage_ex
     |   |-- memory_stage_mem
