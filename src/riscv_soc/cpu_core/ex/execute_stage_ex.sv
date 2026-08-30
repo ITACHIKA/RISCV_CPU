@@ -7,8 +7,8 @@ module execute_stage_ex (
     input  id_ex_reg_t            id_ex_reg_q,
     input  ex_mem_reg_t           ex_mem_reg_q,
     input  logic [31:0]           wb_data_wb,
-    input  rs_forward_mux_sel_t   rs1_forward_mux_sel_ex,
-    input  rs_forward_mux_sel_t   rs2_forward_mux_sel_ex,
+    // input  rs_forward_mux_sel_t   rs1_forward_mux_sel_ex,
+    // input  rs_forward_mux_sel_t   rs2_forward_mux_sel_ex,
 
     // Outputs
     output ex_mem_reg_t           ex_mem_reg_d
@@ -44,11 +44,11 @@ always_comb begin
     // endcase
     mem_forward_result_ex = ex_mem_reg_q.forward_data;
     // use the forwarded data from MEM stage to EX stage, which can be either ALU result or PC+4, but not MEM result
-    // saves a MUX for better timing
+    // for better timing
 end
 
 always_comb begin
-    unique case (rs1_forward_mux_sel_ex)
+    unique case (id_ex_reg_q.rs1_forward_mux_sel)
         RS_FORWARD_NONE: rs1_forward_result_ex = id_ex_reg_q.rs1_data;
         RS_FORWARD_MEM:  rs1_forward_result_ex = mem_forward_result_ex;
         RS_FORWARD_WB:   rs1_forward_result_ex = wb_data_wb;
@@ -57,7 +57,7 @@ always_comb begin
 end
 
 always_comb begin
-    unique case (rs2_forward_mux_sel_ex)
+    unique case (id_ex_reg_q.rs2_forward_mux_sel)
         RS_FORWARD_NONE: rs2_forward_result_ex = id_ex_reg_q.rs2_data;
         RS_FORWARD_MEM:  rs2_forward_result_ex = mem_forward_result_ex;
         RS_FORWARD_WB:   rs2_forward_result_ex = wb_data_wb;
@@ -142,12 +142,16 @@ always_comb begin
     ex_mem_reg_d.alu_result = alu_result_ex;
     ex_mem_reg_d.rs2_data   = rs2_forward_result_ex;
     ex_mem_reg_d.rd         = id_ex_reg_q.rd;
+    ex_mem_reg_d.rs1        = id_ex_reg_q.rs1;
+    ex_mem_reg_d.rs2        = id_ex_reg_q.rs2;
     ex_mem_reg_d.reg_we     = id_ex_reg_q.reg_we;
     ex_mem_reg_d.mem_re     = id_ex_reg_q.mem_re;
     ex_mem_reg_d.mem_we     = id_ex_reg_q.mem_we;
     ex_mem_reg_d.memsize    = id_ex_reg_q.memsize;
     ex_mem_reg_d.memsign    = id_ex_reg_q.memsign;
     ex_mem_reg_d.wb_sel     = id_ex_reg_q.wb_sel;
+    // determine MEM->EX forward data WHEN data to be forwarded is still in EX stage
+    // saves comparison timing in MEM stage. The case of forwarding dmem data is handled by stall so not covered here.
     ex_mem_reg_d.forward_data = (id_ex_reg_q.wb_sel == WB_PC) ? id_ex_reg_q.pcplus4 : alu_result_ex;
     ex_mem_reg_d.predicted_taken = id_ex_reg_q.predicted_taken;
     ex_mem_reg_d.actual_taken = btb_actual_taken_ex;

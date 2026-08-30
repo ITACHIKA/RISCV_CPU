@@ -10,6 +10,8 @@ module decode_stage_id (
     input  logic [4:0]  rd_addr_wb,
     input  logic [31:0] rd_data_wb,
     input  logic        rd_we_wb,
+    input  rs_forward_mux_sel_t   rs1_forward_mux_sel, // from hazard unit
+    input  rs_forward_mux_sel_t   rs2_forward_mux_sel,
 
     // Outputs
     output id_ex_reg_t  id_ex_reg_d,
@@ -129,6 +131,8 @@ always_comb begin
     id_ex_reg_d.predicted_pc  = if_id_reg_q.predicted_pc;
     id_ex_reg_d.predicted_taken = if_id_reg_q.predicted_taken;
     id_ex_reg_d.funct3        = funct3_id;
+    id_ex_reg_d.rs1_forward_mux_sel = rs1_forward_mux_sel;
+    id_ex_reg_d.rs2_forward_mux_sel = rs2_forward_mux_sel;
     id_ex_reg_d.valid         = if_id_reg_q.valid;
 end
 

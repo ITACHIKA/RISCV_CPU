@@ -27,11 +27,13 @@ logic [31:0] data_req_wdata_mem;
 logic [3:0]  data_req_wstrb_mem;
 logic [31:0] data_resp_rdata_wb;
 
+logic imem_resolved_rden_mem;
 logic dmem_resolved_wren_mem;
 logic dmem_resolved_rden_mem;
 logic gpio_resolved_wren_mem;
 logic gpio_resolved_rden_mem;
 
+logic [31:0] imem_rdata_wb;
 logic [31:0] dmem_rdata_wb;
 logic [31:0] gpio_rdata_wb;
 mmio_wb_sel_t mmio_wb_sel_wb;
@@ -61,15 +63,21 @@ imem_if imem (
     // Inputs
     .clk       (clk),
     .reset_n   (reset_n),
-    .addr      (imem_req_addr_if),
+    .addr_instr(imem_req_addr_if),
     .req_valid (imem_req_valid_if),
     .resp_ready(imem_resp_ready_if),
     .flush     (imem_flush_if),
+    // Port B inputs
+    .addr_rdata(data_req_addr_mem),
+    .rdata_rden(data_req_valid_mem && imem_resolved_rden_mem),
 
     // Outputs
     .instruction(imem_resp_data_if),
     .req_ready  (imem_req_ready_if),
-    .resp_valid (imem_resp_valid_if)
+    .resp_valid (imem_resp_valid_if),
+
+    // Port B outputs
+    .load_rdata (imem_rdata_wb)
 );
 
 address_resolver_mem address_resolver_mem (
@@ -82,6 +90,7 @@ address_resolver_mem address_resolver_mem (
 
     // Outputs
     .mmio_wb_sel       (mmio_wb_sel_wb),
+    .imem_resolved_rden(imem_resolved_rden_mem),
     .dmem_resolved_wren(dmem_resolved_wren_mem),
     .dmem_resolved_rden(dmem_resolved_rden_mem),
     .gpio_resolved_wren(gpio_resolved_wren_mem),
@@ -119,6 +128,7 @@ gpio gpio (
 
 always_comb begin
     unique case (mmio_wb_sel_wb)
+        MMIO_WB_SEL_IMEM: data_resp_rdata_wb = imem_rdata_wb;
         MMIO_WB_SEL_DMEM: data_resp_rdata_wb = dmem_rdata_wb;
         MMIO_WB_SEL_GPIO: data_resp_rdata_wb = gpio_rdata_wb;
         default:          data_resp_rdata_wb = 32'd0;

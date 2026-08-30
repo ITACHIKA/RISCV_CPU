@@ -6,10 +6,13 @@ module imem_if(
     input logic req_valid,
     input logic resp_ready,
     input logic flush, // flush signal to discard the current instruction fetch request
-    input logic [31:0] addr,
+    input logic [31:0] addr_instr,
+    input logic [31:0] addr_rdata, // PORTB Addr
+    input logic rdata_rden, // read enable signal for data read from instruction memory, PORT B
 
     // Outputs
     output logic [31:0] instruction,
+    output logic [31:0] load_rdata, // the data read from instruction memory, used for load instruction, PORT B
     output logic req_ready,
     output logic resp_valid
 );
@@ -33,10 +36,14 @@ assign req_ready = (!resp_valid || resp_ready || flush);
 always_ff @(posedge clk) begin
     if(!reset_n) begin
         resp_valid <= 1'b0;
+        load_rdata <= 32'd0;
     end
     else begin
         if(rden) begin // read enable and CPU is capable of accepting new instruction
-            instruction <= instr_rom[addr[31:2]];
+            instruction <= instr_rom[addr_instr[12:2]];
+        end
+        if(rdata_rden) begin // read enable and CPU is capable of accepting new instruction
+            load_rdata <= instr_rom[addr_rdata[12:2]];
         end
         if(flush) begin
             resp_valid <= rden;

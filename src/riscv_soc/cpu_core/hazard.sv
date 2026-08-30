@@ -10,12 +10,15 @@ module hazard(
     input logic [4:0] rs2_id,
     input logic [4:0] rs1_ex,
     input logic [4:0] rs2_ex,
+    input logic [4:0] rs1_mem,
+    input logic [4:0] rs2_mem,
     input logic [4:0] rd_ex, // for load-use hazard detection, need rd in EX stage
     input logic [4:0] rd_mem,
     input logic [4:0] rd_wb,
-    input logic reg_we_mem,
+    input logic reg_we_ex,
     input logic reg_we_wb,
-    input logic wb_forward_valid_wb, // for forwarding logic, only forward ALU and PC results, not MEM results
+    // input logic wb_forward_valid_wb, // for forwarding logic, only forward ALU and PC results, not MEM results
+    input logic wb_forward_valid_mem, // same as above, but determine if forward needed in MEM stage
 
     input logic uses_rs1_id, // for load-use hazard detection
     input logic uses_rs2_id, // for load-use hazard detection
@@ -42,30 +45,33 @@ logic rs2_mem_match;
 logic rs1_wb_match;
 logic rs2_wb_match;
 
+// comapres forwarding in ID with EX and MEM
+// result will be piplined into EX stage for actual forwarding
+// Cut WNS path for comparing and selecting in EX stage
 always_comb begin
     mem_forward_valid =
-        valid_mem &&
-        reg_we_mem &&
-        !mem_rden_mem &&
-        (rd_mem != 5'd0);
+        valid_ex &&
+        reg_we_ex &&
+        !mem_rden_ex &&
+        (rd_ex != 5'd0);
 
     rs1_mem_match =
         mem_forward_valid &&
-        (rs1_ex == rd_mem);
+        (rs1_id == rd_ex);
 
     rs2_mem_match =
         mem_forward_valid &&
-        (rs2_ex == rd_mem);
+        (rs2_id == rd_ex);
 
     rs1_wb_match =
-        wb_forward_valid_wb &&
-        (rd_wb != 5'd0) &&
-        (rs1_ex == rd_wb);
+        wb_forward_valid_mem &&
+        (rd_mem != 5'd0) &&
+        (rs1_id == rd_mem);
 
     rs2_wb_match =
-        wb_forward_valid_wb &&
-        (rd_wb != 5'd0) &&
-        (rs2_ex == rd_wb);
+        wb_forward_valid_mem &&
+        (rd_mem != 5'd0) &&
+        (rs2_id == rd_mem);
 end
 
 always_comb begin

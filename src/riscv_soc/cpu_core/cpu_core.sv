@@ -38,13 +38,13 @@ logic redirect_pc_request_mem;
 logic [31:0] redirect_next_pc_mem;
 logic load_use_stall_if;
 
-rs_forward_mux_sel_t rs1_forward_mux_sel_ex;
-rs_forward_mux_sel_t rs2_forward_mux_sel_ex;
+rs_forward_mux_sel_t rs1_forward_mux_sel_id;
+rs_forward_mux_sel_t rs2_forward_mux_sel_id;
 
 logic [4:0]  rd_addr_wb;
 logic [31:0] wb_data_wb;
 logic [31:0] wb_forward_data_wb;
-logic        wb_forward_valid_wb;
+logic        wb_forward_valid_mem;
 logic        rd_we_wb;
 
 logic illegal_instr_id;
@@ -82,6 +82,8 @@ decode_stage_id decode_stage (
     .clk        (clk),
     .reset_n    (reset_n),
     .if_id_reg_q(if_id_reg_q),
+    .rs1_forward_mux_sel (rs1_forward_mux_sel_id),
+    .rs2_forward_mux_sel (rs2_forward_mux_sel_id),
     .rd_addr_wb  (rd_addr_wb),
     .rd_data_wb  (wb_data_wb),
     .rd_we_wb    (rd_we_wb),
@@ -97,8 +99,6 @@ execute_stage_ex execute_stage (
     .ex_mem_reg_q       (ex_mem_reg_q), // need to connect ex_mem_reg_q to the execute stage for forwarding logic
     // .wb_data_wb             (wb_data_wb),
     .wb_data_wb             (wb_forward_data_wb), // use dedicated forwarding data, which doesn't include MEM forwarding
-    .rs1_forward_mux_sel_ex (rs1_forward_mux_sel_ex),
-    .rs2_forward_mux_sel_ex (rs2_forward_mux_sel_ex),
 
     // Outputs
     .ex_mem_reg_d         (ex_mem_reg_d)
@@ -120,7 +120,8 @@ memory_stage_mem memory_stage (
     .load_misalign_except_mem (load_misalign_except_mem),
     .store_misalign_except_mem(store_misalign_except_mem),
     .redirect_pc_request_mem(redirect_pc_request_mem),
-    .redirect_next_pc_mem   (redirect_next_pc_mem)
+    .redirect_next_pc_mem   (redirect_next_pc_mem),
+    .wb_forward_valid_mem   (wb_forward_valid_mem)
 );
 
 writeback_stage_wb writeback_stage (
@@ -132,7 +133,7 @@ writeback_stage_wb writeback_stage (
     .rd_addr_wb(rd_addr_wb),
     .wb_data_wb(wb_data_wb),
     .wb_forward_data_wb(wb_forward_data_wb),
-    .wb_forward_valid_wb(wb_forward_valid_wb),
+    // .wb_forward_valid_wb(wb_forward_valid_wb),
     .rd_we_wb  (rd_we_wb)
 );
 
@@ -145,9 +146,11 @@ hazard hazard (
     .rd_ex        (id_ex_reg_q.rd),
     .rd_mem       (ex_mem_reg_q.rd),
     .rd_wb        (mem_wb_reg_q.rd),
-    .reg_we_mem   (ex_mem_reg_q.reg_we),
+    .rs1_mem      (ex_mem_reg_q.rs1),
+    .rs2_mem      (ex_mem_reg_q.rs2),
+    .reg_we_ex    (id_ex_reg_q.reg_we),
     .reg_we_wb    (mem_wb_reg_q.reg_we),
-    .wb_forward_valid_wb(wb_forward_valid_wb),
+    .wb_forward_valid_mem(wb_forward_valid_mem),
     .valid_id     (if_id_reg_q.valid),
     .valid_ex     (id_ex_reg_q.valid),
     .valid_mem    (ex_mem_reg_q.valid),
@@ -160,8 +163,8 @@ hazard hazard (
     .uses_rs2_ex  (id_ex_reg_q.uses_rs2),
 
     // Outputs
-    .rs1_forward_mux_sel(rs1_forward_mux_sel_ex),
-    .rs2_forward_mux_sel(rs2_forward_mux_sel_ex),
+    .rs1_forward_mux_sel(rs1_forward_mux_sel_id),
+    .rs2_forward_mux_sel(rs2_forward_mux_sel_id),
     .load_use_stall_if  (load_use_stall_if)
 );
 
