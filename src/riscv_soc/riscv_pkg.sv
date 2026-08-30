@@ -67,6 +67,12 @@ package riscv_pkg;
         BP_JAL
     } branch_predict_type_t;
 
+    typedef enum logic [1:0] {
+        RS_FORWARD_NONE,
+        RS_FORWARD_MEM,
+        RS_FORWARD_WB
+    } rs_forward_mux_sel_t;
+
 
     typedef logic [6:0] opcode_t;
     localparam opcode_t OPCODE_LOAD =  7'b0000011;
@@ -189,6 +195,10 @@ typedef struct packed {
     logic [31:0] predicted_pc;
     logic predicted_taken;
 
+    // forwarding signals from hazard unit
+    rs_forward_mux_sel_t rs1_forward_mux_sel;
+    rs_forward_mux_sel_t rs2_forward_mux_sel;
+
 } id_ex_reg_t;
 
 typedef struct packed {
@@ -199,6 +209,8 @@ typedef struct packed {
     logic [31:0] alu_result;
     logic [31:0] rs2_data; // for store instruction
     logic [4:0] rd;
+    logic [4:0] rs1;
+    logic [4:0] rs2;
 
     // control signals
     logic reg_we;
@@ -246,14 +258,9 @@ typedef struct packed{
     logic [31:0] predicted_pc;
 } pc_predict_result_t;
 
-typedef enum logic [1:0] {
-    RS_FORWARD_NONE,
-    RS_FORWARD_MEM,
-    RS_FORWARD_WB
-} rs_forward_mux_sel_t;
-
 typedef enum logic [2:0] {
     MMIO_WB_SEL_NONE,
+    MMIO_WB_SEL_IMEM,
     MMIO_WB_SEL_DMEM,
     MMIO_WB_SEL_GPIO
 } mmio_wb_sel_t;

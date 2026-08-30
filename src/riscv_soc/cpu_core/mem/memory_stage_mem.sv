@@ -17,8 +17,11 @@ module memory_stage_mem (
     output logic        store_misalign_except_mem,
 
     output logic                  redirect_pc_request_mem,
-    output logic [31:0]           redirect_next_pc_mem
+    output logic [31:0]           redirect_next_pc_mem,
+    output logic                  wb_forward_valid_mem
 );
+
+assign wb_forward_valid_mem = ex_mem_reg_q.valid && ex_mem_reg_q.reg_we && (ex_mem_reg_q.wb_sel != WB_MEM); // only forward ALU and PC results, not MEM results
 
 logic mem_read_mem;
 logic mem_write_mem;

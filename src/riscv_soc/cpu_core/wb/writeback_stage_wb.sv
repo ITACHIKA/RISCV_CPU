@@ -11,7 +11,7 @@ module writeback_stage_wb (
     output logic [4:0]  rd_addr_wb,
     output logic [31:0] wb_data_wb,
     output logic [31:0] wb_forward_data_wb,
-    output logic        wb_forward_valid_wb,
+    // output logic        wb_forward_valid_wb,
     output logic        rd_we_wb
 );
 
@@ -29,7 +29,7 @@ lsu_wb lsu_wb (
     .load_data(load_data_wb)
 );
 
-assign wb_forward_valid_wb = mem_wb_reg_q.valid && mem_wb_reg_q.reg_we && (mem_wb_reg_q.wb_sel != WB_MEM); // only forward ALU and PC results, not MEM results
+// assign wb_forward_valid_wb = mem_wb_reg_q.valid && mem_wb_reg_q.reg_we && (mem_wb_reg_q.wb_sel != WB_MEM); // only forward ALU and PC results, not MEM results
 
 always_comb begin
     unique case (mem_wb_reg_q.wb_sel)
