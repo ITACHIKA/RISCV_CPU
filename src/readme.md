@@ -202,7 +202,7 @@ The data interface currently assumes the fixed read latency used by the local RA
 | Address | Device | Description |
 | --- | --- | --- |
 | `0x0000_0000`–`0x0000_1FFF` | IMEM | 8 KiB instruction ROM |
-| `0x1000_0000`–`0x1FFF_FFFF` | DMEM decode region | Routed to local RAM |
+| `0x8000_0000`–`0x8FFF_FFFF` | DMEM decode region | Routed to local RAM |
 | `0x4000_0000` | GPIO LED | Bit 0 drives `led[0]` |
 | `0x4000_0004` | GPIO button | Bit 0 reports synchronized `btn[1]` |
 

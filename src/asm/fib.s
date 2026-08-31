@@ -8,7 +8,7 @@
 # number.  This is intentional and does not affect the branch-predictor test.
 #
 # DMEM layout:
-#   0x1000_0000 + 4*n = F(n) mod 2^32, for 0 <= n < 100
+#   0x8000_0000 + 4*n = F(n) mod 2^32, for 0 <= n < 100
 #
 # Status/debug registers:
 #   x31 = 0 while running, 1 when complete
@@ -33,7 +33,7 @@ _start:
     addi x31, x0, 0             # Running.
     addi x29, x0, 1             # Fibonacci phase.
 
-    lui  x10, 0x10000           # x10 = DMEM write pointer, 0x1000_0000.
+    lui  x10, 0x80000           # x10 = DMEM write pointer, 0x8000_0000.
     addi x11, x0, 100           # Number of values left to store.
     addi x12, x0, 0             # a = F(0).
     addi x13, x0, 1             # b = F(1).
@@ -54,4 +54,3 @@ complete_padding:
     .rept 32
     addi x0, x0, 0
     .endr
-

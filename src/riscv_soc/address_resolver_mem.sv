@@ -23,17 +23,14 @@ logic illegal_addr_except;
 /*
 MMIO mapping:
 0x0000_0000 - 0x0FFF_FFFF: IMEM
-0x1000_0000 - 0x1FFF_FFFF: DMEM
+0x8000_0000 - 0x8FFF_FFFF: DMEM
 
-0x4000_0000 - 0x4FFF_FFFF: GPIO
+0x1000_0000 - 0x1FFF_FFFF: GPIO
 
-0x4000_0000 - temporary address for a GPIO
-0x4000_0004 - temporary address for a GPIO
+0x1000_0000 - temporary address for a GPIO
+0x1000_0004 - temporary address for a GPIO
 
 */
-
-localparam LED_ADDR = 32'h4000_0000;
-localparam BTN_ADDR = 32'h4000_0004;
 
 always_comb begin
     dmem_resolved_wren = 1'b0;
@@ -43,10 +40,10 @@ always_comb begin
     gpio_resolved_wren = 1'b0;
 
     if(mmio_device_wren) begin
-        if(addr >= 32'h1000_0000 && addr <= 32'h1FFF_FFFF) begin
+        if(addr >= 32'h8000_0000 && addr <= 32'h8FFF_FFFF) begin
             dmem_resolved_wren = 1'b1;
         end
-        else if(addr >= 32'h4000_0000 && addr <= 32'h4FFF_FFFF) begin
+        else if(addr >= 32'h1000_0000 && addr <= 32'h1FFF_FFFF) begin
             gpio_resolved_wren = 1'b1;
         end
         else begin
@@ -58,10 +55,10 @@ always_comb begin
         if(addr >= 32'h0000_0000 && addr <= 32'h0FFF_FFFF) begin
             imem_resolved_rden = 1'b1;
         end
-        else if(addr >= 32'h1000_0000 && addr <= 32'h1FFF_FFFF) begin
+        else if(addr >= 32'h8000_0000 && addr <= 32'h8FFF_FFFF) begin
             dmem_resolved_rden = 1'b1;
         end
-        else if(addr >= 32'h4000_0000 && addr <= 32'h4FFF_FFFF) begin
+        else if(addr >= 32'h1000_0000 && addr <= 32'h1FFF_FFFF) begin
             gpio_resolved_rden = 1'b1;
         end
         else begin

@@ -11,7 +11,7 @@ _start:
     addi x29, x0, 0
 
     # DMEM base address decoded by address_resolver_mem.
-    lui  x27, 0x10000
+    lui  x27, 0x80000
 
     # Values used to detect wrong-path register and memory writes.
     addi x20, x0, 7

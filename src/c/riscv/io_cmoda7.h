@@ -12,7 +12,7 @@ typedef struct {
     __I  uint32_t BTN1;
 } GPIO_t;
 
-#define GPIO_BASE 0x40000000u
+#define GPIO_BASE 0x10000000u
 #define GPIO ((GPIO_t *)GPIO_BASE)
 
 #endif
