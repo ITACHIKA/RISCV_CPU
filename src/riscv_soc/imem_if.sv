@@ -17,9 +17,10 @@ module imem_if(
     output logic resp_valid
 );
 
-(* rom_style = "block" *)
-logic [31:0] instr_rom [0:2047]; // 8KB instruction memory, 2048 instructions
+(* ram_style = "block" *)
+logic [31:0] instr_rom [0:8191]; // 32KB instruction memory, 8192 instructions
 initial begin
+    instr_rom  = '{default:32'd0};
     $readmemh("asm.mem", instr_rom);
 end
 
@@ -34,17 +35,23 @@ assign rden = req_valid && req_ready; // read enable signal, when request is val
 assign req_ready = (!resp_valid || resp_ready || flush);
 
 always_ff @(posedge clk) begin
+    if(rden) begin // read enable and CPU is capable of accepting new instruction
+        instruction <= instr_rom[addr_instr[14:2]];
+    end
+end
+
+always_ff @(posedge clk) begin
+    if(rdata_rden) begin
+        load_rdata <= instr_rom[addr_rdata[14:2]];
+    end
+end
+
+
+always_ff @(posedge clk) begin
     if(!reset_n) begin
         resp_valid <= 1'b0;
-        load_rdata <= 32'd0;
     end
     else begin
-        if(rden) begin // read enable and CPU is capable of accepting new instruction
-            instruction <= instr_rom[addr_instr[12:2]];
-        end
-        if(rdata_rden) begin // read enable and CPU is capable of accepting new instruction
-            load_rdata <= instr_rom[addr_rdata[12:2]];
-        end
         if(flush) begin
             resp_valid <= rden;
         end
