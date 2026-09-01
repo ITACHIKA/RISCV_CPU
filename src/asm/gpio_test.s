@@ -3,9 +3,9 @@
 
 _start:
     # MMIO register map:
-    #   0x40000000: LED output register
-    #   0x40000004: button input register
-    lui  x1, 0x40000           # x1 = GPIO base address 0x40000000
+    #   0x10000000: LED output register
+    #   0x10000004: button input register
+    lui  x1, 0x10000           # x1 = GPIO base address 0x10000000
 
     # Start with the LED on. The Cmod A7 button is active-high:
     #   0 = released
