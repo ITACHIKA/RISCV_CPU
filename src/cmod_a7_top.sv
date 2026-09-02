@@ -8,7 +8,8 @@ module cmod_a7_top (
     input  logic [1:0] btn,
 
     // Outputs
-    output logic [0:0] led
+    output logic [0:0] led,
+    output logic pio1
 );
 
 logic clk;
@@ -44,9 +45,11 @@ riscv_soc soc (
     .clk        (clk),
     .reset_n    (reset_n),
     .gpio_btn_in(gpio_btn_sync_ff[1]),
+    .uart_rx   (1'b1), // Tie to 1 for now
 
     // Outputs
-    .gpio_led_out(soc_led)
+    .gpio_led_out(soc_led),
+    .uart_tx   (pio1)
 );
 
 endmodule
