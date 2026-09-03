@@ -262,7 +262,8 @@ typedef enum logic [2:0] {
     MMIO_WB_SEL_NONE,
     MMIO_WB_SEL_IMEM,
     MMIO_WB_SEL_DMEM,
-    MMIO_WB_SEL_GPIO
+    MMIO_WB_SEL_GPIO,
+    MMIO_WB_SEL_UART
 } mmio_wb_sel_t;
 
 parameter int BTB_BITS = 3;

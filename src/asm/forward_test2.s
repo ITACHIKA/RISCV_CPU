@@ -5,8 +5,8 @@ _start:
     # x31 is the test status: 0 = running, 1 = pass, -1 = fail.
     addi x31, x0, 0
 
-    # DMEM is mapped at 0x1000_0000. Keep its base address in x27.
-    lui  x27, 0x10000
+    # DMEM is mapped at 0x8000_0000. Keep its base address in x27.
+    lui  x27, 0x80000
 
     # Initialize data memory used by the load/store tests.
     addi x3, x0, 55
@@ -73,8 +73,8 @@ _start:
     # Load-use on a store base address (rs1).
     # ------------------------------------------------------------------
     addi x22, x27, 32
-    sw   x22, 8(x27)           # DMEM[8] = 0x1000_0020
-    lw   x22, 8(x27)           # x22 = 0x1000_0020
+    sw   x22, 8(x27)           # DMEM[8] = 0x8000_0020
+    lw   x22, 8(x27)           # x22 = 0x8000_0020
     sw   x3, 0(x22)            # DMEM[32] = 55
     lw   x23, 32(x27)
     addi x30, x0, 55

@@ -11,8 +11,8 @@ _start:
     addi x29, x0, 0
 
     # Use the address range decoded by address_resolver_mem.
-    # DMEM is mapped at 0x10000000-0x100003ff.
-    lui  x20, 0x10000           # x20 = 0x10000000
+    # DMEM is mapped at 0x80000000-0x80007fff.
+    lui  x20, 0x80000           # x20 = 0x80000000
 
     # ------------------------------------------------------------------
     # 1. Full-word store and synchronous load.

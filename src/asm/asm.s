@@ -1,5 +1,5 @@
 addi x1, x0, 5
-lui  x2, 0x10000
+lui  x2, 0x80000
 addi x2, x2, 4
 addi x7, x0, -1
 sw x1, 0(x2)        # Store x1 to memory at x2+0

@@ -2,8 +2,8 @@
 .globl _start
 
 _start:
-    # DMEM base = 0x1000_0000.
-    lui s0, 0x10000
+    # DMEM base = 0x8000_0000.
+    lui s0, 0x80000
 
     # dmem[0] = 1
     li t0, 1

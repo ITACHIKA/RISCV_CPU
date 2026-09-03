@@ -2,7 +2,7 @@
 .globl _start
 
 _start:
-    lui x7, 0x10000            # DMEM base = 0x1000_0000
+    lui x7, 0x80000            # DMEM base = 0x8000_0000
 
     li t0, -45
     sw t0, 0(x7)

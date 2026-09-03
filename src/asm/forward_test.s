@@ -1,5 +1,5 @@
 # MEM priority over WB
-lui  x13, 0x10000       # DMEM base = 0x1000_0000
+lui  x13, 0x80000       # DMEM base = 0x8000_0000
 addi x1, x0, 1
 addi x1, x1, 1
 add  x2, x1, x0       # x2 should be 2
