@@ -244,7 +244,6 @@ assign uart_rx_fifo_pop = !uart_rx_fifo_empty && uart_rden && (uart_addr[11:0] =
 
 
 logic uart_rx_sync1, uart_rx_stable;
-logic uart_rx_busy;
 logic [7:0] uart_rx_byte;
 
 always_ff @(posedge clk) begin // double synchronizer
@@ -263,7 +262,6 @@ logic [2:0] uart_rx_bit_count;
 
 always_ff @(posedge clk) begin
     if(!reset_n) begin
-        uart_rx_busy <= 1'b0;
         uart_rx_states <= UART_RX_IDLE;
         uart_rx_baud_count <= 16'd0;
         uart_rx_bit_count <= 3'd0;
@@ -274,7 +272,6 @@ always_ff @(posedge clk) begin
         uart_rx_byte_valid <= 1'b0;
         if(!uart_control_reg[0] || !uart_control_reg[2] || uart_baud_reg == 0) begin // UART disabled or RX disabled
             uart_rx_states <= UART_RX_IDLE;
-            uart_rx_busy <= 1'b0;
             uart_rx_baud_count <= 16'd0;
             uart_rx_bit_count <= 3'd0;
             uart_rx_byte <= 8'd0;
@@ -284,7 +281,6 @@ always_ff @(posedge clk) begin
                 UART_RX_IDLE: begin
                     if(uart_rx_stable == 1'b0) begin // start bit detected
                         uart_rx_states <= UART_RX_START_BIT;
-                        uart_rx_busy <= 1'b1;
                     end
                 end
                 UART_RX_START_BIT: begin
@@ -299,7 +295,6 @@ always_ff @(posedge clk) begin
                     end
                     else begin // false start bit, go back to idle
                         uart_rx_states <= UART_RX_IDLE;
-                        uart_rx_busy <= 1'b0;
                         uart_rx_baud_count <= 16'd0;
                     end
                 end
@@ -321,12 +316,10 @@ always_ff @(posedge clk) begin
                         uart_rx_baud_count <= 16'd0;
                         if(uart_rx_stable == 1'b1) begin // valid stop bit
                             uart_rx_states <= UART_RX_IDLE;
-                            uart_rx_busy <= 1'b0;
                             uart_rx_byte_valid <= 1'b1;
                         end
                         else begin // invalid stop bit, framing error, discard byte
                             uart_rx_states <= UART_RX_IDLE;
-                            uart_rx_busy <= 1'b0;
                         end
                     end
                 end
