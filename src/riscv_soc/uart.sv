@@ -49,10 +49,6 @@ logic uart_baud_tick;
 // Bit 3: RX FIFO empty
 logic [31:0] uart_status_reg;
 
-// For both register, only lower 8 bits are valid
-logic [31:0] uart_tx_reg;
-logic [31:0] uart_rx_reg;
-
 logic uart_tx_busy;
 
 logic [7:0] uart_tx_fifo [0:15]; // 16 bytes FIFO
@@ -121,8 +117,6 @@ always_ff @(posedge clk) begin
     if(!reset_n) begin
         uart_control_reg <= 32'd0;
         uart_baud_reg <= 32'd0;
-        uart_tx_reg <= 32'd0;
-        uart_rx_reg <= 32'd0;
         uart_tx_fifo_wp <= 5'd0;
         uart_rx_fifo_rp <= 5'd0;
     end

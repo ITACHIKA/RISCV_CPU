@@ -9,7 +9,13 @@ void main()
     {
         uint8_t current_button_state = (uint8_t)(GPIO->BTN1 & 0x00000001u);
         if(current_button_state && !previous_button_state) {
-            UART->UARTTXDAT = 'A';
+            char* message = "Button pressed!\n";
+            for(int i = 0; message[i] != '\0'; i++) {
+                while((UART->UARTSTATUS & UARTSTATUS_TX_FIFO_FULL) != 0U) {
+                    // wait until TX FIFO is not full
+                }
+                UART->UARTTXDAT = message[i];
+            }
         }
         previous_button_state = current_button_state;
         if((UART->UARTSTATUS & UARTSTATUS_RX_FIFO_EMPTY) == 0U) { // RX FIFO not empty
