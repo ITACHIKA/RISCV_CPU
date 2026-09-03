@@ -6,6 +6,7 @@ module cmod_a7_top (
     input  logic       sysclk,
     input  logic       reset,
     input  logic [1:0] btn,
+    input  logic       pio2,
 
     // Outputs
     output logic [0:0] led,
@@ -45,7 +46,7 @@ riscv_soc soc (
     .clk        (clk),
     .reset_n    (reset_n),
     .gpio_btn_in(gpio_btn_sync_ff[1]),
-    .uart_rx   (1'b1), // Tie to 1 for now
+    .uart_rx   (pio2),
 
     // Outputs
     .gpio_led_out(soc_led),
