@@ -1,6 +1,6 @@
-ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(filter clean bootloader,$(MAKECMDGOALS)),)
 	ifeq ($(strip $(PRGM)),)
-		$(error Usage: make asm PRGM=<asmname> or make c PRGM=<cname>)
+		$(error Usage: make bootloader, make asm PRGM=<asmname>, or make c PRGM=<cname>)
 	endif
 endif
 # ========= Config =========
@@ -9,8 +9,7 @@ ASM_DIR := asm
 C_DIR   := c
 STARTUP := $(C_DIR)/startup.S
 BUILD_DIR := build
-
-BASENAME := asm
+DRIVER_SRCS := $(C_DIR)/riscv/uart.c
 
 CC       := riscv64-unknown-elf-gcc
 OBJCOPY  := riscv64-unknown-elf-objcopy
@@ -20,10 +19,13 @@ ARCH     := rv32i
 ABI      := ilp32
 
 ENTRY    := _start
-LINKER_SCRIPT := linker.ld
+BOOT_BUILD := $(filter bootloader,$(MAKECMDGOALS))
+LINKER_SCRIPT := $(if $(BOOT_BUILD),linker_bootloader.ld,linker.ld)
+BASENAME := $(if $(BOOT_BUILD),bootloader,$(PRGM))
 
-# make c selects C; make asm and legacy make select assembly.
-BUILD_MODE := $(if $(filter c,$(MAKECMDGOALS)),c,asm)
+
+# make c and make bootloader select C; make asm and legacy make select assembly.
+BUILD_MODE := $(if $(filter c bootloader,$(MAKECMDGOALS)),c,asm)
 
 COMMON_FLAGS := -march=$(ARCH) -mabi=$(ABI)
 C_ONLY_FLAGS := -O2 -ffreestanding -fno-builtin -fno-pic -fno-pie \
@@ -34,8 +36,12 @@ LDFLAGS := -nostdlib -static -Wl,-T,$(LINKER_SCRIPT) \
 
 # Override SRCS to build multiple application files.
 ifeq ($(BUILD_MODE),c)
-	APP_SRCS    := $(if $(strip $(SRCS)),$(SRCS),$(C_DIR)/$(PRGM).c)
-	SOURCES     := $(STARTUP) $(APP_SRCS)
+	ifneq ($(BOOT_BUILD),)
+		APP_SRCS := $(C_DIR)/bootloader.c
+	else
+		APP_SRCS := $(if $(strip $(SRCS)),$(SRCS),$(C_DIR)/$(PRGM).c)
+	endif
+	SOURCES     := $(STARTUP) $(APP_SRCS) $(DRIVER_SRCS)
 	BUILD_FLAGS := $(COMMON_FLAGS) $(C_ONLY_FLAGS)
 	LDLIBS      := -lgcc
 else
@@ -56,9 +62,11 @@ DUMP := $(BUILD_DIR)/$(BASENAME).dump
 
 all: asm
 
-asm: $(HEX) $(DUMP)
+asm: $(BIN) $(HEX) $(DUMP)
 
-c: $(HEX) $(DUMP)
+c: $(BIN) $(HEX) $(DUMP)
+
+bootloader: $(BIN) $(HEX) $(DUMP)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -94,4 +102,4 @@ clean:
 
 FORCE:
 
-.PHONY: all asm c clean FORCE
+.PHONY: all asm c bootloader clean FORCE
