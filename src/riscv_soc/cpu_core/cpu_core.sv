@@ -10,6 +10,7 @@ module riscv_cpu (
     input  logic        imem_resp_valid_if,
     input  logic [31:0] imem_resp_data_if,
     input  logic [31:0] data_resp_rdata_wb,
+    input  logic [31:0] reset_vector,
 
     // Outputs
     output logic        imem_req_valid_if,
@@ -62,6 +63,7 @@ instruction_fetch_stage_if if_stage (
     .imem_req_ready_if  (imem_req_ready_if),
     .imem_resp_valid_if (imem_resp_valid_if),
     .imem_resp_data_if  (imem_resp_data_if),
+    .reset_vector       (reset_vector),
 
     .btb_feedback_pc_mem             (ex_mem_reg_q.pc),
     .btb_feedback_actual_target_mem  (ex_mem_reg_q.btb_target_pc),

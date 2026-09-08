@@ -263,7 +263,8 @@ typedef enum logic [2:0] {
     MMIO_WB_SEL_IMEM,
     MMIO_WB_SEL_DMEM,
     MMIO_WB_SEL_GPIO,
-    MMIO_WB_SEL_UART
+    MMIO_WB_SEL_UART,
+    MMIO_WB_SEL_SYSCTRL
 } mmio_wb_sel_t;
 
 parameter int BTB_BITS = 3;
@@ -277,4 +278,9 @@ typedef struct packed {
     logic [XLEN-1:0] target_pc;
     branch_predict_type_t predict_type;
 } btb_entry_t;
+
+typedef enum logic{
+    BOOTMODE_DOWNLOAD,
+    BOOTMODE_NORMAL
+} bootmode_t;
 endpackage

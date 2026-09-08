@@ -2,8 +2,8 @@ ENTRY(_start)
 
 MEMORY
 {
-    /* 0x00000000-0x00000FFF is reserved for the bootloader. */
-    IMEM (rx)  : ORIGIN = 0x00001000, LENGTH = 28K
+    /* The first 4 KiB of IMEM is the non-downloadable boot region. */
+    IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = 4K
     DMEM (rw)  : ORIGIN = 0x80000000, LENGTH = 32K
 }
 

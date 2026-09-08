@@ -8,6 +8,7 @@ module pc_if (
     input logic clk,
     input logic reset_n,
     input logic [XLEN-1:0] next_pc,
+    input logic [XLEN-1:0] reset_vector,
     input logic pc_update_enable,
 
     // Outputs
@@ -24,7 +25,7 @@ end
 
 always_ff @(posedge clk) begin
     if(!reset_n)
-        current_pc <= PC_START;
+        current_pc <= reset_vector;
     else
         current_pc <= current_pc_next;
 end

@@ -6,22 +6,25 @@ module imem_if(
     input logic req_valid,
     input logic resp_ready,
     input logic flush, // flush signal to discard the current instruction fetch request
-    input logic [31:0] addr_instr,
-    input logic [31:0] addr_rdata, // PORTB Addr
-    input logic rdata_rden, // read enable signal for data read from instruction memory, PORT B
+    input logic [31:0] porta_addr,
 
     // Outputs
-    output logic [31:0] instruction,
-    output logic [31:0] load_rdata, // the data read from instruction memory, used for load instruction, PORT B
+    output logic [31:0] porta_rdata,
     output logic req_ready,
-    output logic resp_valid
+    output logic resp_valid,
+
+    input logic [31:0] portb_addr, // PORTB Addr
+    input logic [31:0] portb_wdata, // PORTB Write Data
+    input logic [3:0] portb_wstrb, // PORTB Write Strobe
+    input logic portb_rden, // read enable signal for data read from instruction memory, PORT B
+    input logic portb_wren, // write enable for PORT B
+    output logic [31:0] portb_rdata // the data read from instruction memory, used for load instruction, PORT B
 );
 
 (* ram_style = "block" *)
 logic [31:0] instr_rom [0:8191]; // 32KB instruction memory, 8192 instructions
 initial begin
-    instr_rom  = '{default:32'd0};
-    $readmemh("asm.mem", instr_rom);
+    $readmemh("bootloader.mem", instr_rom);
 end
 
 logic rden;
@@ -34,15 +37,21 @@ assign rden = req_valid && req_ready; // read enable signal, when request is val
 // Since we request the redirect PC directly during redirect from IF, so even during flush we accept new request and fetch instr
 assign req_ready = (!resp_valid || resp_ready || flush);
 
-always_ff @(posedge clk) begin
+always @(posedge clk) begin
     if(rden) begin // read enable and CPU is capable of accepting new instruction
-        instruction <= instr_rom[addr_instr[14:2]];
+        porta_rdata <= instr_rom[porta_addr[14:2]];
     end
 end
 
-always_ff @(posedge clk) begin
-    if(rdata_rden) begin
-        load_rdata <= instr_rom[addr_rdata[14:2]];
+always @(posedge clk) begin // use always to avoid conflict with initial block
+    if(portb_rden) begin
+        portb_rdata <= instr_rom[portb_addr[14:2]];
+    end
+    else if(portb_wren) begin
+        if(portb_wstrb[0]) instr_rom[portb_addr[14:2]][7:0] <= portb_wdata[7:0];
+        if(portb_wstrb[1]) instr_rom[portb_addr[14:2]][15:8] <= portb_wdata[15:8];
+        if(portb_wstrb[2]) instr_rom[portb_addr[14:2]][23:16] <= portb_wdata[23:16];
+        if(portb_wstrb[3]) instr_rom[portb_addr[14:2]][31:24] <= portb_wdata[31:24];
     end
 end
 
