@@ -12,6 +12,7 @@ module instruction_fetch_stage_if (
     input  logic        imem_req_ready_if,
     input  logic        imem_resp_valid_if,
     input  logic [31:0] imem_resp_data_if,
+    input  logic [31:0] reset_vector,
 
     input logic [31:0] btb_feedback_pc_mem,
     input logic [31:0] btb_feedback_actual_target_mem,
@@ -71,6 +72,7 @@ pc_if pc (
     .clk             (clk),
     .reset_n         (reset_n),
     .next_pc         (next_pc_if),
+    .reset_vector    (reset_vector),
     .pc_update_enable(pc_update_enable_if),
 
     // Outputs

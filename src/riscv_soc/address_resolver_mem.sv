@@ -17,7 +17,9 @@ module address_resolver_mem (
     output logic gpio_resolved_wren,
     output logic gpio_resolved_rden,
     output logic uart_resolved_wren,
-    output logic uart_resolved_rden
+    output logic uart_resolved_rden,
+    output logic sysctrl_resolved_wren,
+    output logic sysctrl_resolved_rden
 
 );
 
@@ -32,8 +34,10 @@ MMIO mapping:
 0x1000_0000 - 0x1000_1000: GPIO
 0x1000_1000 - 0x1000_2000: UART
 
-0x1000_0000 - temporary address for a GPIO
-0x1000_0004 - temporary address for a GPIO
+0x1000_F000 - 0x1000_FFFF: system control registers
+
+0x1000_0000 - address for a led
+0x1000_0004 - address for a btn
 
 */
 
@@ -48,6 +52,8 @@ always_comb begin
     uart_resolved_rden = 1'b0;
     uart_resolved_wren = 1'b0;
     imem_resolved_wren = 1'b0;
+    sysctrl_resolved_rden = 1'b0;
+    sysctrl_resolved_wren = 1'b0;
 
     if(mmio_device_wren) begin
         if(addr >= 32'h8000_0000 && addr < 32'h9000_0000) begin
@@ -62,6 +68,9 @@ always_comb begin
         else if(addr >= 32'h0000_1000 && addr < 32'h1000_0000) begin
             imem_resolved_wren = 1'b1;
         end
+        else if(addr >= 32'h1000_F000 && addr < 32'h1001_0000) begin
+            sysctrl_resolved_wren = 1'b1;
+        end
     end
     else if(mmio_device_rden) begin
         if(addr >= 32'h0000_0000 && addr < 32'h0FFF_FFFF) begin
@@ -75,6 +84,9 @@ always_comb begin
         end
         else if(addr >= 32'h1000_1000 && addr < 32'h1000_2000) begin
             uart_resolved_rden = 1'b1;
+        end
+        else if(addr >= 32'h1000_F000 && addr < 32'h1001_0000) begin
+            sysctrl_resolved_rden = 1'b1;
         end
     end
     else begin // no read or write to MMIO devices
@@ -104,6 +116,9 @@ always_ff @(posedge clk) begin
         end
         else if(uart_resolved_rden) begin
             mmio_wb_sel <= MMIO_WB_SEL_UART;
+        end
+        else if(sysctrl_resolved_rden) begin
+            mmio_wb_sel <= MMIO_WB_SEL_SYSCTRL;
         end
         else begin
             mmio_wb_sel <= MMIO_WB_SEL_NONE;

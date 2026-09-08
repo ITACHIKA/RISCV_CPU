@@ -37,12 +37,19 @@ logic gpio_resolved_wren_mem;
 logic gpio_resolved_rden_mem;
 logic uart_resolved_wren_mem;
 logic uart_resolved_rden_mem;
+logic sysctrl_resolved_wren;
+logic sysctrl_resolved_rden;
 
 logic [31:0] imem_rdata_wb;
 logic [31:0] dmem_rdata_wb;
 logic [31:0] gpio_rdata_wb;
 logic [31:0] uart_rdata_wb;
+logic [31:0] sysctrl_rdata_wb;
 mmio_wb_sel_t mmio_wb_sel_wb;
+
+logic [31:0] reset_vector;
+
+bootmode_t bootmode;
 
 riscv_cpu core (
     // Inputs
@@ -52,6 +59,7 @@ riscv_cpu core (
     .imem_resp_valid_if  (imem_resp_valid_if),
     .imem_resp_data_if   (imem_resp_data_if),
     .data_resp_rdata_wb  (data_resp_rdata_wb), // data response from peripheral memory-mapped devices
+    .reset_vector        (reset_vector),
 
     // Outputs
     .imem_req_valid_if   (imem_req_valid_if),
@@ -105,7 +113,9 @@ address_resolver_mem address_resolver_mem (
     .gpio_resolved_wren(gpio_resolved_wren_mem),
     .gpio_resolved_rden(gpio_resolved_rden_mem),
     .uart_resolved_wren(uart_resolved_wren_mem),
-    .uart_resolved_rden(uart_resolved_rden_mem)
+    .uart_resolved_rden(uart_resolved_rden_mem),
+    .sysctrl_resolved_wren(sysctrl_resolved_wren),
+    .sysctrl_resolved_rden(sysctrl_resolved_rden)
 );
 
 dmem_mem dmem (
@@ -152,14 +162,29 @@ uart uart0 (
     .uart_tx    (uart_tx)
 );
 
+system_control system_control (
+    .clk          (clk),
+    .reset_n      (reset_n),
+    .sysctrl_wren (sysctrl_resolved_wren),
+    .sysctrl_rden (sysctrl_resolved_rden),
+    .sysctrl_addr (data_req_addr_mem),
+    .sysctrl_wdata(data_req_wdata_mem),
+    .sysctrl_wstrb(data_req_wstrb_mem),
+    .rdata        (sysctrl_rdata_wb),
+    .bootmode     (bootmode)
+);
+
 always_comb begin
     unique case (mmio_wb_sel_wb)
         MMIO_WB_SEL_IMEM: data_resp_rdata_wb = imem_rdata_wb;
         MMIO_WB_SEL_DMEM: data_resp_rdata_wb = dmem_rdata_wb;
         MMIO_WB_SEL_GPIO: data_resp_rdata_wb = gpio_rdata_wb;
         MMIO_WB_SEL_UART: data_resp_rdata_wb = uart_rdata_wb;
+        MMIO_WB_SEL_SYSCTRL: data_resp_rdata_wb = sysctrl_rdata_wb;
         default:          data_resp_rdata_wb = 32'd0;
     endcase
 end
+
+assign reset_vector = (bootmode == BOOTMODE_DOWNLOAD) ? 32'h0000_0000 : 32'h0000_1000;
 
 endmodule
