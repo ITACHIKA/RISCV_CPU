@@ -138,7 +138,7 @@ const char usage_message[] =
     "  -h, --help    Show this help\n\n"
     "Examples:\n"
     "  downloader.exe -p COM5 -b 115200\n"
-    "  downloader.exe -p COM5 -b 115200 -f build\\gpio.bin";
+    "  downloader.exe -p COM5 -b 115200 -f program.bin";
 
 void show_usage_dialog()
 {
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
         const std::vector<std::uint8_t> program = load_program(filename);
         serial = open_serial(options.port, options.baud_rate);
 
-        std::cout << "Sending handshake to " << options.port << "...\n";
+        std::cout << "Connecting to " << options.port << "...\n";
         write_all(serial, &handshake_request, 1u);
         if(!wait_for_ack(serial)) {
             throw std::runtime_error("No 0xFE bootloader response within 5 seconds");
@@ -248,13 +248,14 @@ int main(int argc, char **argv)
 
         CloseHandle(serial);
         std::cout << "Sent " << program.size()
-                  << " bytes; the bootloader should now start the program.\n";
+                  << " bytes.\n";
+        std::cout << "Flashing done.\n";
         return EXIT_SUCCESS;
     }
     catch(const std::exception &error) {
         if(serial != INVALID_HANDLE_VALUE) CloseHandle(serial);
         std::cerr << "Downloader error: " << error.what() << '\n';
-        std::cerr << usage_message << '\n';
+        //std::cerr << usage_message << '\n';
         return EXIT_FAILURE;
     }
 }
