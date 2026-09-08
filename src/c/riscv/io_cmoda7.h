@@ -44,4 +44,10 @@ typedef struct {
 #define UART_BASE 0x10001000u
 #define UART ((UART_t *)UART_BASE)
 
+typedef struct {
+    __IO  uint32_t SYSCTRL_BOOTMODE;
+} SYSCTRL_t;
+#define SYSCTRL_BASE 0x1000F000u
+#define SYSCTRL ((SYSCTRL_t *)SYSCTRL_BASE)
+
 #endif

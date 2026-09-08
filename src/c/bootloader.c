@@ -44,6 +44,7 @@ void main()
                     *((volatile uint8_t *)(START_ADDRESS + byte_offset)) = charbuf;
                     byte_offset++;
                 }
+                SYSCTRL->SYSCTRL_BOOTMODE = 0x00000001u; // set boot mode to user program
                 jump_to_user(START_ADDRESS);
             }
         }
