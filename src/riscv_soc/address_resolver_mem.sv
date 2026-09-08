@@ -13,6 +13,7 @@ module address_resolver_mem (
     output logic dmem_resolved_wren,
     output logic dmem_resolved_rden,
     output logic imem_resolved_rden, // imem is read only
+    output logic imem_resolved_wren, // for bootloader use
     output logic gpio_resolved_wren,
     output logic gpio_resolved_rden,
     output logic uart_resolved_wren,
@@ -24,7 +25,8 @@ logic illegal_addr_except;
 
 /*
 MMIO mapping:
-0x0000_0000 - 0x0FFF_FFFF: IMEM
+0x0000_0000 - 0x0000_0FFF: Boot ROM (IMEM), 4KB
+0x0000_1000 - 0x0FFF_FFFF: IMEM
 0x8000_0000 - 0x8FFF_FFFF: DMEM
 
 0x1000_0000 - 0x1000_1000: GPIO
@@ -45,9 +47,10 @@ always_comb begin
     gpio_resolved_wren = 1'b0;
     uart_resolved_rden = 1'b0;
     uart_resolved_wren = 1'b0;
+    imem_resolved_wren = 1'b0;
 
     if(mmio_device_wren) begin
-        if(addr >= 32'h8000_0000 && addr < 32'h8FFF_FFFF) begin
+        if(addr >= 32'h8000_0000 && addr < 32'h9000_0000) begin
             dmem_resolved_wren = 1'b1;
         end
         else if(addr >= 32'h1000_0000 && addr < 32'h1000_1000) begin
@@ -55,6 +58,9 @@ always_comb begin
         end
         else if(addr >= 32'h1000_1000 && addr < 32'h1000_2000) begin
             uart_resolved_wren = 1'b1;
+        end
+        else if(addr >= 32'h0000_1000 && addr < 32'h1000_0000) begin
+            imem_resolved_wren = 1'b1;
         end
     end
     else if(mmio_device_rden) begin

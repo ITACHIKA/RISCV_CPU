@@ -150,10 +150,10 @@ always_ff @(posedge clk) begin
                 uart_rdata <= uart_status_reg;
             end
             else if(uart_addr[11:0] == 12'h018) begin
-            if(uart_rx_fifo_pop) begin
-                uart_rdata[7:0] <= uart_rx_fifo[uart_rx_fifo_rp[3:0]];
-                uart_rx_fifo_rp <= uart_rx_fifo_rp + 1;
-            end
+                if(uart_rx_fifo_pop) begin
+                    uart_rdata[7:0] <= uart_rx_fifo[uart_rx_fifo_rp[3:0]];
+                    uart_rx_fifo_rp <= uart_rx_fifo_rp + 1;
+                end
             end
         end
     end

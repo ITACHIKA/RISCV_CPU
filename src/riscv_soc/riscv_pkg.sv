@@ -277,4 +277,9 @@ typedef struct packed {
     logic [XLEN-1:0] target_pc;
     branch_predict_type_t predict_type;
 } btb_entry_t;
+
+typedef enum logic [1:0]{
+    BOOTMODE_DOWNLOAD,
+    BOOTMODE_NORMAL
+} bootmode_t;
 endpackage
