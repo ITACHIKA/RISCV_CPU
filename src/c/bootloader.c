@@ -60,7 +60,6 @@ void main()
         if(uart_try_getchar((char*)&charbuf)) {
             if(charbuf == 0xFF) // start of handshake
             {
-                SYSCTRL->SYSCTRL_BOOTMODE = 0x00000000u;
                 uart_putchar((char)DOWNLOAD_READY);
 
                 // Header fields are transmitted as 32-bit little-endian values.
