@@ -39,5 +39,9 @@ util\downloader.exe --port COM5 --baud 115200 --file build\gpio.bin
 
 Running `downloader.exe` without the required arguments displays a Windows
 message box containing this usage information. The utility sends `0xFF`, waits
-for `0xFE`, sends the four-byte little-endian image size, then sends the image.
-It rejects images larger than the 28 KiB application region at `0x00001000`.
+for `0xFE`, then sends the four-byte little-endian image size, the four-byte
+little-endian IEEE CRC-32, and the raw image. It rejects images larger than the
+28 KiB application region at `0x00001000`.
+
+After receiving the image, the bootloader returns `0xFD` on successful CRC
+verification, `0xFC` on a CRC mismatch, or `0xFB` for an invalid image size.
