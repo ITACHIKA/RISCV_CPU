@@ -20,10 +20,8 @@ bootmode_t bootmode_reg = BOOTMODE_DOWNLOAD;
 assign bootmode = bootmode_reg;
 
 always_ff @(posedge clk) begin
-    begin
-        if(sysctrl_wren && sysctrl_addr == 32'h1000_F000) begin
-            bootmode_reg <= bootmode_t'(sysctrl_wdata[0]);
-        end
+    if(sysctrl_wren && sysctrl_addr == 32'h1000_F000) begin
+        bootmode_reg <= bootmode_t'(sysctrl_wdata[0]);
     end
 end
 

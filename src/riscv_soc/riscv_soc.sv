@@ -163,6 +163,7 @@ uart uart0 (
 );
 
 system_control system_control (
+    // Inputs
     .clk          (clk),
     .reset_n      (reset_n),
     .sysctrl_wren (sysctrl_resolved_wren),
@@ -171,6 +172,8 @@ system_control system_control (
     .sysctrl_wdata(data_req_wdata_mem),
     .sysctrl_wstrb(data_req_wstrb_mem),
     .rdata        (sysctrl_rdata_wb),
+
+    // Outputs
     .bootmode     (bootmode)
 );
 
