@@ -6,6 +6,8 @@
 
 /* Configure and enable the UART with a precomputed baud-rate divider. */
 void uart_init(uint32_t baud_divider);
+void uart_deinit(void);
+void uart_wait_tx_idle(void);
 
 /* Blocking single-byte transmit and receive operations. */
 void uart_putchar(char character);

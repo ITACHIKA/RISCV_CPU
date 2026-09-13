@@ -15,6 +15,9 @@ namespace {
 
 constexpr std::uint8_t handshake_request = 0xFFu;
 constexpr std::uint8_t handshake_response = 0xFEu;
+constexpr std::uint8_t download_success = 0xFDu;
+constexpr std::uint8_t download_crc_error = 0xFCu;
+constexpr std::uint8_t download_size_error = 0xFBu;
 constexpr std::size_t maximum_program_size = 28u * 1024u;
 
 [[noreturn]] void win32_error(const char *message)
@@ -51,7 +54,7 @@ std::vector<std::uint8_t> load_program(const std::string &path)
     const std::streamoff length = file.tellg();
     if(length <= 0) throw std::runtime_error("The selected file is empty");
     if(static_cast<std::uint64_t>(length) > maximum_program_size) {
-        throw std::runtime_error("Program exceeds the 28 KiB application region");
+        throw std::runtime_error("Program exceeds the application region");
     }
 
     std::vector<std::uint8_t> data(static_cast<std::size_t>(length));
@@ -126,6 +129,39 @@ bool wait_for_ack(HANDLE serial)
         if(received == 1u && byte == handshake_response) return true;
     }
     return false;
+}
+
+bool wait_for_result(HANDLE serial, std::uint8_t &result)
+{
+    const ULONGLONG deadline = GetTickCount64() + 5000u;
+    while(GetTickCount64() < deadline) {
+        DWORD received = 0u;
+        if(ReadFile(serial, &result, 1u, &received, nullptr) == FALSE) {
+            win32_error("Serial read failed");
+        }
+        if(received == 1u &&
+           (result == download_success ||
+            result == download_crc_error ||
+            result == download_size_error)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::uint32_t crc32(const std::vector<std::uint8_t> &data)
+{
+    std::uint32_t crc = 0xFFFFFFFFu;
+
+    for(const std::uint8_t byte : data) {
+        crc ^= byte;
+        for(unsigned int bit = 0u; bit < 8u; ++bit) {
+            const std::uint32_t mask = 0u - (crc & 1u);
+            crc = (crc >> 1u) ^ (0xEDB88320u & mask);
+        }
+    }
+
+    return crc ^ 0xFFFFFFFFu;
 }
 
 const char usage_message[] =
@@ -236,20 +272,40 @@ int main(int argc, char **argv)
         }
 
         const std::uint32_t size = static_cast<std::uint32_t>(program.size());
+        const std::uint32_t checksum = crc32(program);
         const std::array<std::uint8_t, 4> encoded_size{
             static_cast<std::uint8_t>(size),
             static_cast<std::uint8_t>(size >> 8u),
             static_cast<std::uint8_t>(size >> 16u),
             static_cast<std::uint8_t>(size >> 24u)
         };
+        const std::array<std::uint8_t, 4> encoded_crc{
+            static_cast<std::uint8_t>(checksum),
+            static_cast<std::uint8_t>(checksum >> 8u),
+            static_cast<std::uint8_t>(checksum >> 16u),
+            static_cast<std::uint8_t>(checksum >> 24u)
+        };
         write_all(serial, encoded_size.data(), encoded_size.size());
+        write_all(serial, encoded_crc.data(), encoded_crc.size());
         write_all(serial, program.data(), program.size());
         if(FlushFileBuffers(serial) == FALSE) win32_error("FlushFileBuffers");
 
+        std::uint8_t result = 0u;
+        if(!wait_for_result(serial, result)) {
+            throw std::runtime_error("No download result within 5 seconds");
+        }
+        if(result == download_crc_error) {
+            throw std::runtime_error("Bootloader reported a CRC-32 mismatch");
+        }
+        if(result == download_size_error) {
+            throw std::runtime_error("Bootloader rejected the program size");
+        }
+
         CloseHandle(serial);
         std::cout << "Sent " << program.size()
-                  << " bytes.\n";
-        std::cout << "Flashing done.\n";
+                  << " bytes with CRC-32 0x" << std::hex << checksum
+                  << std::dec << ".\n";
+        std::cout << "CRC verified; flashing done.\n";
         return EXIT_SUCCESS;
     }
     catch(const std::exception &error) {

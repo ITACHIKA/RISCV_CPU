@@ -19,10 +19,13 @@ void uart_init(uint32_t baud_divider)
 
 void uart_deinit(void)
 {
-    UART->UARTCFGCLR = UARTCFG_MASTER_ENABLE |
-                       UARTCFG_TX_ENABLE |
-                       UARTCFG_RX_ENABLE;
-    UART->UARTBAUD = 0U;
+    UART->UARTCFGSET = UARTCFG_DEINIT;
+}
+
+void uart_wait_tx_idle(void)
+{
+    while((UART->UARTSTATUS & UARTSTATUS_TX_IDLE) == 0u) {
+    }
 }
 
 void uart_putchar(char character)

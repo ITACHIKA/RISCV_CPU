@@ -264,6 +264,7 @@ typedef enum logic [2:0] {
     MMIO_WB_SEL_DMEM,
     MMIO_WB_SEL_GPIO,
     MMIO_WB_SEL_UART,
+    MMIO_WB_SEL_TIMER,
     MMIO_WB_SEL_SYSCTRL
 } mmio_wb_sel_t;
 
@@ -274,7 +275,7 @@ parameter int BHT_ENTRIES = 32;
 
 typedef struct packed {
     logic valid;
-    logic [7:0] tag; // 8 entry needs 3 bit, remove lower 2 bits, current addr is 8k -> 13bits, so 8 bits tag
+    logic [9:0] tag; // 8 entry needs 3 bit, remove lower 2 bits, current addr is 32k -> 15bits, so 10 bits tag
     logic [XLEN-1:0] target_pc;
     branch_predict_type_t predict_type;
 } btb_entry_t;

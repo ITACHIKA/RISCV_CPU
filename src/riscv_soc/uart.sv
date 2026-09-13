@@ -32,6 +32,7 @@ module uart (
 // Bit 0: UART enable
 // Bit 1: TX enable
 // Bit 2: RX enable
+// Bit 3: UART reset (disable)
 // Other: reserved
 logic [31:0] uart_control_reg;
 
@@ -47,6 +48,7 @@ logic uart_baud_tick;
 // Bit 1: TX FIFO empty
 // Bit 2: RX FIFO full
 // Bit 3: RX FIFO empty
+// Bit 4: TX completely idle (FIFO empty and serializer inactive)
 logic [31:0] uart_status_reg;
 
 logic uart_tx_busy;
@@ -72,8 +74,16 @@ logic [4:0] uart_rx_fifo_count;
 logic uart_rx_fifo_pop;
 logic uart_rx_fifo_push;
 
+logic uart_soft_reset;
+
+assign uart_soft_reset =
+    uart_wren &&
+    uart_addr[11:0] == 12'h004 &&
+    uart_wstrb[0] &&
+    uart_wdata[3];
+
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_tx_fifo_count <= 5'd0;
     end
     else begin
@@ -88,7 +98,7 @@ always_ff @(posedge clk) begin
 end
 
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_rx_fifo_count <= 5'd0;
     end
     else begin
@@ -114,7 +124,7 @@ end
 
 // UART address decoding
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_control_reg <= 32'd0;
         uart_baud_reg <= 32'd0;
         uart_tx_fifo_wp <= 5'd0;
@@ -161,7 +171,7 @@ end
 
 // UART clock divider
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_baud_counter <= 32'd0;
         uart_baud_tick <= 1'b0;
     end
@@ -188,7 +198,7 @@ end
 logic [9:0] uart_tx_shift_reg; // Assume 8N1
 logic [3:0] uart_tx_bit_count;
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_tx_fifo_rp <= 5'd0;
         uart_tx_shift_reg <= 10'h3FF;
         uart_tx_bit_count <= 4'd0;
@@ -247,7 +257,7 @@ logic uart_rx_sync1, uart_rx_stable;
 logic [7:0] uart_rx_byte;
 
 always_ff @(posedge clk) begin // double synchronizer
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_rx_sync1 <= 1'b1;
         uart_rx_stable <= 1'b1;
     end
@@ -261,7 +271,7 @@ logic [15:0] uart_rx_baud_count;
 logic [2:0] uart_rx_bit_count;
 
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_rx_states <= UART_RX_IDLE;
         uart_rx_baud_count <= 16'd0;
         uart_rx_bit_count <= 3'd0;
@@ -329,7 +339,7 @@ always_ff @(posedge clk) begin
 end
 
 always_ff @(posedge clk) begin
-    if(!reset_n) begin
+    if(!reset_n || uart_soft_reset) begin
         uart_rx_fifo_wp <= 5'd0;
     end
     else begin
@@ -347,6 +357,7 @@ always_comb begin
     uart_status_reg[1] = uart_tx_fifo_empty;
     uart_status_reg[2] = uart_rx_fifo_full;
     uart_status_reg[3] = uart_rx_fifo_empty;
+    uart_status_reg[4] = uart_tx_fifo_empty && !uart_tx_busy;
 end
 
 endmodule

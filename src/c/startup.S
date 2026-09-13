@@ -32,6 +32,8 @@ _start:
     jal  x0, .Lclear_bss
 
 .Lcall_main:
+    li   a0, 0
+    li   a1, 0
     jal  ra, main
 
     # There is no operating system to receive the return value from main.

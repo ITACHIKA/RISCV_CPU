@@ -19,8 +19,9 @@ logic soc_led;
 (* ASYNC_REG = "TRUE" *) logic [1:0] gpio_btn_sync_ff;
 
 // assign clk     = sysclk;
-assign reset_n = ~reset;
 assign led[0]  = soc_led;
+logic clk_locked;
+logic [1:0] reset_sync_ff = 2'b00;
 
 always_ff @(posedge clk) begin
     if (!reset_n) begin
@@ -38,7 +39,8 @@ clk_wiz_0 clk_wiz_inst (
     .reset(reset),
 
     // Outputs
-    .clk_out1(clk)
+    .clk_out1(clk),
+    .locked(clk_locked)
 );
 
 riscv_soc soc (
@@ -52,5 +54,14 @@ riscv_soc soc (
     .gpio_led_out(soc_led),
     .uart_tx   (pio1)
 );
+
+always_ff @(posedge clk or negedge clk_locked) begin
+    if (!clk_locked)
+        reset_sync_ff <= 2'b00;
+    else
+        reset_sync_ff <= {reset_sync_ff[0], 1'b1};
+end
+
+assign reset_n = reset_sync_ff[1];
 
 endmodule
