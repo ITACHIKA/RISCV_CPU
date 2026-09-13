@@ -3,3 +3,4 @@ build/
 work/
 .Xil
 util/*.exe
+c/coremark
