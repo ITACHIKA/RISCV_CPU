@@ -18,6 +18,8 @@ module address_resolver_mem (
     output logic gpio_resolved_rden,
     output logic uart_resolved_wren,
     output logic uart_resolved_rden,
+    output logic timer_resolved_wren,
+    output logic timer_resolved_rden,
     output logic sysctrl_resolved_wren,
     output logic sysctrl_resolved_rden
 
@@ -33,6 +35,7 @@ MMIO mapping:
 
 0x1000_0000 - 0x1000_1000: GPIO
 0x1000_1000 - 0x1000_2000: UART
+0x1000_2000 - 0x1000_3000: Timer
 
 0x1000_F000 - 0x1000_FFFF: system control registers
 
@@ -47,6 +50,8 @@ always_comb begin
     dmem_resolved_wren = 1'b0;
     dmem_resolved_rden = 1'b0;
     imem_resolved_rden = 1'b0;
+    timer_resolved_rden = 1'b0;
+    timer_resolved_wren = 1'b0;
     gpio_resolved_rden = 1'b0;
     gpio_resolved_wren = 1'b0;
     uart_resolved_rden = 1'b0;
@@ -64,6 +69,9 @@ always_comb begin
         end
         else if(addr >= 32'h1000_1000 && addr < 32'h1000_2000) begin
             uart_resolved_wren = 1'b1;
+        end
+        else if(addr >= 32'h1000_2000 && addr < 32'h1000_3000) begin
+            timer_resolved_wren = 1'b1;
         end
         else if(addr >= 32'h0000_1000 && addr < 32'h1000_0000) begin
             imem_resolved_wren = 1'b1;
@@ -85,6 +93,9 @@ always_comb begin
         else if(addr >= 32'h1000_1000 && addr < 32'h1000_2000) begin
             uart_resolved_rden = 1'b1;
         end
+        else if(addr >= 32'h1000_2000 && addr < 32'h1000_3000) begin
+            timer_resolved_rden = 1'b1;
+        end
         else if(addr >= 32'h1000_F000 && addr < 32'h1001_0000) begin
             sysctrl_resolved_rden = 1'b1;
         end
@@ -97,6 +108,8 @@ always_comb begin
         gpio_resolved_rden = 1'b0;
         uart_resolved_wren = 1'b0;
         uart_resolved_rden = 1'b0;
+        timer_resolved_wren = 1'b0;
+        timer_resolved_rden = 1'b0;
     end
 end
 
@@ -116,6 +129,9 @@ always_ff @(posedge clk) begin
         end
         else if(uart_resolved_rden) begin
             mmio_wb_sel <= MMIO_WB_SEL_UART;
+        end
+        else if(timer_resolved_rden) begin
+            mmio_wb_sel <= MMIO_WB_SEL_TIMER;
         end
         else if(sysctrl_resolved_rden) begin
             mmio_wb_sel <= MMIO_WB_SEL_SYSCTRL;
