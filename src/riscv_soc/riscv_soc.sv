@@ -37,6 +37,8 @@ logic gpio_resolved_wren_mem;
 logic gpio_resolved_rden_mem;
 logic uart_resolved_wren_mem;
 logic uart_resolved_rden_mem;
+logic timer_resolved_wren_mem;
+logic timer_resolved_rden_mem;
 logic sysctrl_resolved_wren;
 logic sysctrl_resolved_rden;
 
@@ -44,6 +46,7 @@ logic [31:0] imem_rdata_wb;
 logic [31:0] dmem_rdata_wb;
 logic [31:0] gpio_rdata_wb;
 logic [31:0] uart_rdata_wb;
+logic [31:0] timer_rdata_wb;
 logic [31:0] sysctrl_rdata_wb;
 mmio_wb_sel_t mmio_wb_sel_wb;
 
@@ -114,6 +117,8 @@ address_resolver_mem address_resolver_mem (
     .gpio_resolved_rden(gpio_resolved_rden_mem),
     .uart_resolved_wren(uart_resolved_wren_mem),
     .uart_resolved_rden(uart_resolved_rden_mem),
+    .timer_resolved_wren(timer_resolved_wren_mem),
+    .timer_resolved_rden(timer_resolved_rden_mem),
     .sysctrl_resolved_wren(sysctrl_resolved_wren),
     .sysctrl_resolved_rden(sysctrl_resolved_rden)
 );
@@ -162,6 +167,17 @@ uart uart0 (
     .uart_tx    (uart_tx)
 );
 
+timer timer (
+    .clk        (clk),
+    .reset_n    (reset_n),
+    .timer_addr (data_req_addr_mem),
+    .timer_wren (timer_resolved_wren_mem),
+    .timer_rden (timer_resolved_rden_mem),
+    .timer_wdata(data_req_wdata_mem),
+    .timer_wstrb(data_req_wstrb_mem),
+    .timer_rdata(timer_rdata_wb)
+);
+
 system_control system_control (
     // Inputs
     .clk          (clk),
@@ -183,6 +199,7 @@ always_comb begin
         MMIO_WB_SEL_DMEM: data_resp_rdata_wb = dmem_rdata_wb;
         MMIO_WB_SEL_GPIO: data_resp_rdata_wb = gpio_rdata_wb;
         MMIO_WB_SEL_UART: data_resp_rdata_wb = uart_rdata_wb;
+        MMIO_WB_SEL_TIMER: data_resp_rdata_wb = timer_rdata_wb;
         MMIO_WB_SEL_SYSCTRL: data_resp_rdata_wb = sysctrl_rdata_wb;
         default:          data_resp_rdata_wb = 32'd0;
     endcase
