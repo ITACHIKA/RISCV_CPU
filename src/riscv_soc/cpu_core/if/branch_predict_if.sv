@@ -19,7 +19,7 @@ module branch_predict_if(
 btb_entry_t [BTB_ENTRIES-1:0] btb_table;
 
 logic [BTB_BITS-1:0] branch_update_index;
-logic [7:0] btb_query_tag;
+logic [9:0] btb_query_tag;
 logic [BTB_BITS-1:0] btb_query_index;
 logic [XLEN-1:0] btb_result_target;
 logic btb_tag_match;
@@ -44,7 +44,7 @@ assign bht_predict_taken = bht_table[bht_query_index][1];
 // BTB query logic
 always_comb begin
     btb_query_index = current_pc[4:2];
-    btb_query_tag = current_pc[12:5];
+    btb_query_tag = current_pc[14:5];
     btb_result_target = btb_table[btb_query_index].target_pc;
     btb_tag_match = (btb_table[btb_query_index].tag == btb_query_tag);
     btb_result_hit = btb_tag_match
@@ -56,7 +56,7 @@ always_ff @(posedge clk) begin
     if(!reset_n) begin
         for (int i = 0; i < BTB_ENTRIES; i++) begin
             btb_table[i].valid <= 1'b0;
-            btb_table[i].tag <= 8'd0;
+            btb_table[i].tag <= 10'd0;
             btb_table[i].target_pc <= 32'd0;
             btb_table[i].predict_type <= BP_NONE;
         end
@@ -64,7 +64,7 @@ always_ff @(posedge clk) begin
     else begin
         if(btb_feedback_valid && (btb_feedback_predict_type == BP_JAL || (btb_feedback_taken && btb_feedback_predict_type == BP_CONDITIONAL))) begin
             btb_table[branch_update_index].valid <= 1'b1;
-            btb_table[branch_update_index].tag <= btb_feedback_pc[12:5];
+            btb_table[branch_update_index].tag <= btb_feedback_pc[14:5];
             btb_table[branch_update_index].target_pc <= btb_feedback_actual_target;
             btb_table[branch_update_index].predict_type <= btb_feedback_predict_type;
         end
